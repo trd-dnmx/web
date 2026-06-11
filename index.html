@@ -52,7 +52,7 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradShift 3s ease infinite;
+  animation: gradShift 4.5s ease infinite;
 }
 .loader-bar-wrap {
   margin-top: 40px;
@@ -110,7 +110,7 @@ nav {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradShift 3s ease infinite;
+  animation: gradShift 4.5s ease infinite;
   cursor: pointer;
   text-shadow: none;
   filter: drop-shadow(0 0 8px rgba(220,20,60,0.6));
@@ -274,7 +274,7 @@ section.page.active { display: block; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradShift 3s ease infinite, slideUp 0.8s 0.5s ease both;
+  animation: gradShift 4.5s ease infinite, slideUp 0.8s 0.5s ease both;
   filter: drop-shadow(0 0 30px rgba(220,20,60,0.5));
 }
 .hero-subtitle {
@@ -592,7 +592,7 @@ section.page.active { display: block; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradShift 3s ease infinite;
+  animation: gradShift 4.5s ease infinite;
 }
 .section-line {
   width: 80px; height: 2px;
@@ -676,7 +676,7 @@ section.page.active { display: block; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradShift 3s ease infinite;
+  animation: gradShift 4.5s ease infinite;
 }
 .why-text p {
   color: rgba(255,255,255,0.6);
@@ -766,7 +766,7 @@ section.page.active { display: block; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradShift 3s ease infinite;
+  animation: gradShift 4.5s ease infinite;
   margin-bottom: 16px;
 }
 .page-hero-subtitle {
@@ -2143,6 +2143,8 @@ const EXEC_MEMBERS = [
   { id:3, name:"CyberElite", position:"Head Of Council", initials:"CE", description:"CyberElite is the clan's most revered council leader, commanding respect from every member and guiding DNMX with unmatched authority. As the head of the council, he steers the clan's vision, settles the most critical disputes, and ensures every strategy aligns with the long-term success of the clan.", playstyle:"A masterful strategist who blends political influence, economic foresight, and decisive leadership. He shapes council decisions, coordinates elite operations, and inspires unwavering loyalty through his presence in every major campaign.", responsibilities:"Leadership of the Executive Council. Policy development and oversight. Conflict mediation among senior leaders. Alignment of council strategy with long-term clan goals.", council:"Executive" }, 
   { id:4, name:"DrGlass09", position:"Director Of Intelligence", initials:"DG", description:"DrGlass09 is the clan's silent sentinel, quietly observing every move from the shadows while the world thinks it acts freely. As Director of Intelligence, he is intensely respected for his calm presence and ability to discover secrets before they become threats.", playstyle:"A reserved operative who prefers patient observation, data collection, and discreet influence. He moves without fanfare, extracting enemy intent and shaping outcomes from behind the scenes like a true intelligence director.", responsibilities:"Intelligence collection and analysis. Counter-intelligence and security. Covert operations oversight. Briefing Executive leadership on threats and opportunities.", council:"Executive" },
   { id:5, name:"Noah_7219", position:"Economical Head", initials:"NH", description:"Noah_7219 is the architect of DNMX's economic power, steering the clan's treasury, logistics, and campaign funding with unmatched precision. His decisions keep resources flowing, strategic initiatives fueled, and the clan prepared for every clash.", playstyle:"Resource and economics specialist who designs the clan's supply networks, prioritizes strategic spending, and turns every asset into a battlefield advantage. He uses market insight and efficiency planning to keep DNMX strong in both peace and war.", responsibilities:"Economic planning and resource allocation. Budget management and logistics. Supply chain oversight. Financial strategy for sustained campaigns.", council:"Executive" },
+  { id:6, name:"CrazyLightning5", position:"N/A", initials:"CL", description:"CrazyLightning5 is a versatile and dynamic member of DNMX's Executive Council, contributing across multiple domains with a focus on operational support and strategic initiatives. While not holding a specific title, CrazyLightning5's adaptability and dedication make them an invaluable asset to the clan's ongoing success.", playstyle:"Flexible and supportive, excelling in various roles as needed. Focuses on ensuring smooth operations and assisting wherever gaps arise.", responsibilities:"Provides operational support across multiple projects. Assists in coordination between different teams. Steps in to fill gaps in leadership or execution as needed. Contributes to the overall efficiency and cohesion of clan activities.", council:"Executive" },
+  
   { id:6, name:"T_j4y", position:"Advisor", initials:"TJ", description:"T_j4y serves as a trusted advisor to the Executive Council, offering strategic guidance and support across multiple domains. With keen insight into clan operations and dynamics, T_j4y provides counsel on critical decisions and helps mentor emerging leaders within DNMX.", playstyle:"Consultative and supportive approach focused on providing strategic insights and mentorship. T_j4y excels at analyzing situations, identifying solutions, and guiding others toward informed decisions without commandeering operations.", responsibilities:"Provides strategic counsel to Executive Council members. Mentors rising talent and emerging leaders. Analyzes operational challenges and recommends solutions. Supports decision-making processes and ensures continuity of clan vision. Acts as a liaison between leadership and broader membership.", council:"Executive" },
 ];
 
@@ -2953,10 +2955,22 @@ window.closeModal = closeModal;
 // ══════════════════════════════════════
 window.addEventListener('load', () => {
   setTimeout(() => {
-    document.getElementById('loader').classList.add('hide');
+    const loaderText = document.querySelector('#loader .loader-text');
+    if (loaderText) loaderText.textContent = 'COMMAND CENTER INITLIAZED';
+  }, 3000);
+
+  setTimeout(() => {
+    const loader = document.getElementById('loader');
+    if (loader) {
+      loader.classList.add('hide');
+      document.body.style.overflow = '';
+      setTimeout(() => {
+        try { loader.style.display = 'none'; } catch (e) {}
+      }, 500);
+    }
     spawnParticles();
     animateCounters();
-  }, 2000);
+  }, 5000);
 });
 </script>
 <script>
@@ -2975,7 +2989,7 @@ window.addEventListener('load', () => {
     } catch (e) {
       // swallow
     }
-  }, 1500);
+  }, 8000);
 </script>
 </body>
 </html>
