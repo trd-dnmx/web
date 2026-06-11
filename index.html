@@ -1537,7 +1537,7 @@ footer p {
       <div class="why-text">
         <h2>Why the Best Choose DNMX</h2>
         <p>In a world of countless clans and factions, DNMX stands apart. We are not a group — we are a sovereign clan with structure, purpose, and a legacy of excellence.</p>
-        <p>When you join DNMX, you don't just gain a tag. You earn a rank, a council, a brotherhood — and the right to bear the mark of the clan's finest.</p>
+        <p>When you join DNMX, you don't just gain a tag. You earn a rank, a brotherhood — and the right to bear the mark of the clan's finest.</p>
         <div class="why-ctas">
           <button class="btn-primary" onclick="navigate('hierarchy')"><span>VIEW RANKS</span></button>
           <button class="btn-secondary" onclick="navigate('announcements')">LATEST NEWS</button>
@@ -1858,7 +1858,7 @@ function updateAuthUI() {
   if (!area) return;
   if (CURRENT_USER) {
     // Do not display the ingame name next to the logout button to keep the nav tidy
-    area.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><button class="btn-secondary" onclick="signOutUser()">LOG OUT</button></div>`;
+    area.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><button class="btn-secondary" onclick="openLogoutConfirm()">LOG OUT</button></div>`;
   } else {
     area.innerHTML = `<button class="btn-secondary" id="authButton" onclick="openLoginModal()">LOG IN</button>`;
   }
@@ -1898,6 +1898,24 @@ function signInWithGoogle() {
 // FIREBASE: Sign out
 function signOutUser() {
   firebaseSignOut(auth).catch(err => console.error('Sign-out error:', err));
+}
+
+function openLogoutConfirm() {
+  document.getElementById('modalContent').innerHTML = `
+    <h2 class="modal-title">Confirm Log Out</h2>
+    <p class="modal-subtitle">Are you sure you want to log out?</p>
+    <div style="display:flex;gap:14px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px;">
+      <button type="button" class="btn-secondary" onclick="closeModal()">CANCEL</button>
+      <button type="button" class="btn-primary" onclick="confirmSignOut()"><span>LOG OUT</span></button>
+    </div>
+    <p id="logoutError" style="margin-top:14px;color:#ff7b7b;font-size:0.9rem;min-height:20px;"></p>
+  `;
+  openModal();
+}
+
+function confirmSignOut() {
+  closeModal();
+  signOutUser();
 }
 
 // Prompt user for their in-game name after successful sign-in
@@ -2125,14 +2143,12 @@ const EXEC_MEMBERS = [
   { id:3, name:"CyberElite", position:"Head Of Council", initials:"CE", description:"CyberElite is the clan's most revered council leader, commanding respect from every member and guiding DNMX with unmatched authority. As the head of the council, he steers the clan's vision, settles the most critical disputes, and ensures every strategy aligns with the long-term success of the clan.", playstyle:"A masterful strategist who blends political influence, economic foresight, and decisive leadership. He shapes council decisions, coordinates elite operations, and inspires unwavering loyalty through his presence in every major campaign.", responsibilities:"Leadership of the Executive Council. Policy development and oversight. Conflict mediation among senior leaders. Alignment of council strategy with long-term clan goals.", council:"Executive" }, 
   { id:4, name:"DrGlass09", position:"Director Of Intelligence", initials:"DG", description:"DrGlass09 is the clan's silent sentinel, quietly observing every move from the shadows while the world thinks it acts freely. As Director of Intelligence, he is intensely respected for his calm presence and ability to discover secrets before they become threats.", playstyle:"A reserved operative who prefers patient observation, data collection, and discreet influence. He moves without fanfare, extracting enemy intent and shaping outcomes from behind the scenes like a true intelligence director.", responsibilities:"Intelligence collection and analysis. Counter-intelligence and security. Covert operations oversight. Briefing Executive leadership on threats and opportunities.", council:"Executive" },
   { id:5, name:"Noah_7219", position:"Economical Head", initials:"NH", description:"Noah_7219 is the architect of DNMX's economic power, steering the clan's treasury, logistics, and campaign funding with unmatched precision. His decisions keep resources flowing, strategic initiatives fueled, and the clan prepared for every clash.", playstyle:"Resource and economics specialist who designs the clan's supply networks, prioritizes strategic spending, and turns every asset into a battlefield advantage. He uses market insight and efficiency planning to keep DNMX strong in both peace and war.", responsibilities:"Economic planning and resource allocation. Budget management and logistics. Supply chain oversight. Financial strategy for sustained campaigns.", council:"Executive" },
-  { id:6, name:"SoftScorpion123", position:"Leader Of Tactical Command", initials:"SS", description:"SoftScorpion123 is DNMX's frontline PvP commander and trusted leader in every arena engagement. Her authority is earned through fearless execution and clear-headed direction when every battle hangs in the balance.", playstyle:"PvP leader with a focus on competitive duels and squad-based battlefield dominance. She inspires the team, reads enemy formations instantly, and makes split-second decisions that turn engagements in DNMX's favor.", responsibilities:"Tactical command of frontline operations. PvP leadership and squad coordination. Battle planning and real-time execution oversight. Training and mentorship of assault teams.", council:"Executive" },
-  { id:7, name:"ObsidianSoul", position:"Gamemode Leader", initials:"OS", description:"ObsidianSoul leads DNMX's dedicated gamemode team, designing, balancing, and managing the clan's signature event experiences. They ensure every custom mode runs smoothly, stays engaging, and aligns with the community's competitive standards.", playstyle:"Creative systems manager who focuses on mode design, testing, and player experience. They blend strategic planning with rapid adaptation to keep custom gamemodes fresh and fair.", responsibilities:"Oversees gamemode development and event scheduling. Manages mode-specific rules, balancing, and troubleshooting. Coordinates with leadership, guides mode operators, and ensures player satisfaction during special events.", council:"Executive" },
-  { id:8, name:"T_j4y", position:"Advisor", initials:"TJ", description:"T_j4y serves as a trusted advisor to the Executive Council, offering strategic guidance and support across multiple domains. With keen insight into clan operations and dynamics, T_j4y provides counsel on critical decisions and helps mentor emerging leaders within DNMX.", playstyle:"Consultative and supportive approach focused on providing strategic insights and mentorship. T_j4y excels at analyzing situations, identifying solutions, and guiding others toward informed decisions without commandeering operations.", responsibilities:"Provides strategic counsel to Executive Council members. Mentors rising talent and emerging leaders. Analyzes operational challenges and recommends solutions. Supports decision-making processes and ensures continuity of clan vision. Acts as a liaison between leadership and broader membership.", council:"Executive" },
+  { id:6, name:"T_j4y", position:"Advisor", initials:"TJ", description:"T_j4y serves as a trusted advisor to the Executive Council, offering strategic guidance and support across multiple domains. With keen insight into clan operations and dynamics, T_j4y provides counsel on critical decisions and helps mentor emerging leaders within DNMX.", playstyle:"Consultative and supportive approach focused on providing strategic insights and mentorship. T_j4y excels at analyzing situations, identifying solutions, and guiding others toward informed decisions without commandeering operations.", responsibilities:"Provides strategic counsel to Executive Council members. Mentors rising talent and emerging leaders. Analyzes operational challenges and recommends solutions. Supports decision-making processes and ensures continuity of clan vision. Acts as a liaison between leadership and broader membership.", council:"Executive" },
 ];
 
 const MGMT_MEMBERS = [
-  { id:9, name:"TheKiller87", position:"Design Head", initials:"TK", description:"TheKiller87 is DNMX's farm design lead, responsible for planning efficient, high-yield farms and ensuring every resource hub supports the clan's long-term growth.", playstyle:"Methodical and detail-oriented. Focuses on layout efficiency, resource optimization, and durability.", responsibilities:"Farm layout planning and optimization. Resource flow and production efficiency. Coordination with builders and economic leaders to sustain clan supply lines.", council:"Management" },
-  { id:10, name:"Blood_Hound1", position:"Director of Training", initials:"BH", description:"Pellarian leads DNMX's PvP training division, crafting fight-ready routines and sharpening members for every arena encounter.", playstyle:"Aggressive, skill-focused training. Emphasizes combat timing, gear mastery, and situational awareness in PvP duels.", responsibilities:"Designs and runs PvP training drills. Evaluates combat readiness and develops progression paths. Coaches members on tactics, combos, and team fight coordination.", council:"Management" },
+  { id:7, name:"TheKiller87", position:"Design Head", initials:"TK", description:"TheKiller87 is DNMX's farm design lead, responsible for planning efficient, high-yield farms and ensuring every resource hub supports the clan's long-term growth.", playstyle:"Methodical and detail-oriented. Focuses on layout efficiency, resource optimization, and durability.", responsibilities:"Farm layout planning and optimization. Resource flow and production efficiency. Coordination with builders and economic leaders to sustain clan supply lines.", council:"Management" },
+  { id:8, name:"Hazelnutt", position:"N/A", initials:"HN", description:"Hazelnutt is a versatile member of DNMX's management team, contributing across various domains with a focus on operational support and project coordination. While not holding a specific title, Hazelnutt's adaptability and dedication make them an invaluable asset to the clan's ongoing success.", playstyle:"Flexible and supportive, excelling in various roles as needed. Focuses on ensuring smooth operations and assisting wherever gaps arise.", responsibilities:"Provides operational support across multiple projects. Assists in coordination between different teams. Steps in to fill gaps in leadership or execution as needed. Contributes to the overall efficiency and cohesion of clan activities.", council:"Management" },
 ];
 
 // REPLACED BY FIRESTORE: localStorage loading functions removed
@@ -2534,7 +2550,7 @@ function openNewAnnouncementModal() {
 
   const authorVal = CURRENT_USER ? CURRENT_USER.ingameName : '';
   const initialsVal = CURRENT_USER ? (CURRENT_USER.ingameName.split(' ').map(w => w[0]).join('').slice(0,3)) : '';
-  const readOnly = CURRENT_USER ? 'readonly' : '';
+  const readOnly = '';
   document.getElementById('modalContent').innerHTML = `
     <h2 class="modal-title">New Announcement</h2>
     <p class="modal-subtitle" style="margin-bottom:18px;">Choose a category, enter the title, body, and your in-game name.</p>
@@ -2623,7 +2639,7 @@ function openAssignTaskModal() {
 
   const assignedName = CURRENT_USER ? CURRENT_USER.ingameName : '';
   const initialsVal = CURRENT_USER ? (CURRENT_USER.ingameName.split(' ').map(w => w[0]).join('').slice(0,3)) : '';
-  const readOnly = CURRENT_USER ? 'readonly' : '';
+  const readOnly = '';
   document.getElementById('modalContent').innerHTML = `
     <h2 class="modal-title">Assign New Task</h2>
     <p class="modal-subtitle" style="margin-bottom:18px;">Enter the task details and your in-game name.</p>
