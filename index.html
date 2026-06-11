@@ -2961,18 +2961,21 @@ window.addEventListener('load', () => {
 </script>
 <script>
   // Fallback: if the module script failed or had an error,
-  // ensure the loader doesn't block the UI indefinitely.
+  // force-hide the loader shortly after load so UI isn't blocked.
   setTimeout(() => {
     try {
       const loader = document.getElementById('loader');
-      if (loader && !loader.classList.contains('hide')) {
-        loader.classList.add('hide');
-        document.body.style.overflow = '';
-      }
+      if (!loader) return;
+      // add hide class for CSS transition, then remove from layout
+      loader.classList.add('hide');
+      document.body.style.overflow = '';
+      setTimeout(() => {
+        try { loader.style.display = 'none'; } catch (e) {}
+      }, 500);
     } catch (e) {
       // swallow
     }
-  }, 4000);
+  }, 1500);
 </script>
 </body>
 </html>
