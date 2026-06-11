@@ -1819,12 +1819,16 @@ const db = getFirestore(app);
 //  ADMIN SYSTEM
 // ═════════════════════════════════════=
 const ADMIN_EMAILS = [
- "revivaltechfixes@gmail.com",
- "tntplayertnt8@gmail.com",
- "onex7.tapx7@gmail.com ",
- "drglass09yt@gmail.com",
- "cyberelite5253@gmail.com",
- "moedafish11@gmail.com",];
+          "revivaltechfixes@gmail.com",
+          "tntplayertnt8@gmail.com",
+          "drglass09yt@gmail.com",
+          "cyberelite5253@gmail.com",
+          "moedafish11@gmail.com",
+          "budavasile6211@gmail.com",
+          "tk.dnmx@gmail.com",
+          "poochkite2007@gmail.com",
+          "chickendajaja@gmail.com"
+];
 
 function isAdmin() {
   return CURRENT_USER && ADMIN_EMAILS.includes(CURRENT_USER.email);
@@ -1984,13 +1988,16 @@ function setupAnnouncementsListener() {
         ? data.createdAt.toDate()
         : (data.createdAt instanceof Date ? data.createdAt : new Date());
       const formattedDate = createdAtValue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const authorName = data.authorName || data.author || 'Unknown';
+      const authorInitials = data.authorInitials || (authorName.split(' ').map(w => w[0]).join('').slice(0,3) || 'UN');
       ANNOUNCEMENTS.push({
         id: doc.id,
         title: data.title || '',
         body: data.content || '',
         category: data.category || 'update',
         author: data.author || 'Unknown',
-        authorInitials: data.author ? data.author.split(' ').map(w => w[0]).join('').slice(0,3) : 'UN',
+        authorName: authorName,
+        authorInitials: authorInitials,
         date: formattedDate,
         createdAt: createdAtValue,
         preview: (data.content || '').length > 140 ? (data.content || '').slice(0, 137) + '...' : (data.content || ''),
@@ -2004,14 +2011,14 @@ function setupAnnouncementsListener() {
 }
 
 // FIREBASE: Save announcement to Firestore
-async function saveAnnouncementToFirestore(category, title, body, authorName) {
+async function saveAnnouncementToFirestore(category, title, body, authorName, authorInitials) {
   try {
     await addDoc(collection(db, 'announcements'), {
       title: title,
       content: body,
       author: CURRENT_USER ? CURRENT_USER.email : 'unknown@example.com',
       authorName: authorName,
-      authorInitials: authorName ? authorName.split(' ').map(w => w[0]).join('').slice(0,3) : '',
+      authorInitials: authorInitials,
       createdAt: serverTimestamp(),
       ...(category ? { category: category } : {})
     });
@@ -2046,13 +2053,14 @@ function setupTasksListener() {
         ? data.createdAt.toDate()
         : (data.createdAt instanceof Date ? data.createdAt : new Date());
       const assignedName = data.assignedTo || data.assignedBy || 'Unknown';
+      const assignedInitials = data.assignedInitials || assignedName.split(' ').map(w => w[0]).join('').slice(0,3);
       TASKS.push({
         id: doc.id,
         title: data.title || '',
         details: data.details || '',
         category: data.category || 'support',
         assignedTo: assignedName,
-        assignedInitials: assignedName.split(' ').map(w => w[0]).join('').slice(0,3),
+        assignedInitials: assignedInitials,
         preview: (data.details || '').length > 140 ? (data.details || '').slice(0, 137) + '...' : (data.details || ''),
         completed: data.completed === true,
         createdAt: createdAtValue
@@ -2065,7 +2073,7 @@ function setupTasksListener() {
 }
 
 // FIREBASE: Save task to Firestore
-async function saveTaskToFirestore(category, title, details, assignedTo, authorName) {
+async function saveTaskToFirestore(category, title, details, assignedTo, assignedInitials) {
   try {
     await addDoc(collection(db, 'tasks'), {
       category: category,
@@ -2073,9 +2081,9 @@ async function saveTaskToFirestore(category, title, details, assignedTo, authorN
       title: title,
       details: details,
       assignedTo: assignedTo,
+      assignedInitials: assignedInitials,
       author: CURRENT_USER ? CURRENT_USER.email : 'unknown@example.com',
       assignedBy: assignedTo,
-      authorName: authorName,
       completed: false,
       createdAt: serverTimestamp()
     });
@@ -2614,7 +2622,8 @@ async function submitAnnouncementForm(event) {
   }
 
   try {
-    await saveAnnouncementToFirestore(category, title, body, authorName);
+    const authorInitials = initials;
+    await saveAnnouncementToFirestore(category, title, body, authorName, authorInitials);
     closeModal();
     announceFilter = 'all';
     document.querySelectorAll('#announceFilters .chip').forEach(c => c.classList.remove('active'));
@@ -2703,7 +2712,8 @@ async function submitTaskForm(event) {
   }
 
   try {
-    await saveTaskToFirestore(category, title, details, assignedTo, assignedTo);
+    const assignedInitials = initials;
+    await saveTaskToFirestore(category, title, details, assignedTo, assignedInitials);
     closeModal();
     taskFilter = 'all';
     document.querySelectorAll('#taskFilters .chip').forEach(c => c.classList.remove('active'));
