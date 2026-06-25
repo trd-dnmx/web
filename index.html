@@ -2741,31 +2741,27 @@
         </div>
       </div>
 
-      <div class="principles-section" style="padding-top:20px;">
-        <div style="display:flex; justify-content:center; gap:20px; margin-bottom:40px;">
-          <button class="chip active" id="btnImagesArchive" onclick="window.switchMemoriesTab('images')">IMAGES
-            ARCHIVE</button>
-          <button class="chip" id="btnHonorableMentions" onclick="window.switchMemoriesTab('honors')">HONORABLE
-            MENTIONS</button>
-        </div>
-
         <!-- Images Archive Sub Section -->
         <div id="subSectionImages" class="memories-sub-section">
-          <div class="announce-controls" style="margin-bottom: 30px;">
-            <div class="search-wrap">
+          <div class="announce-controls" style="margin-bottom: 30px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-wrap" style="flex: 1; max-width: 500px; min-width: 250px;">
               <span class="search-icon">🔍</span>
               <input type="text" id="memorySearch" placeholder="Search images by name..."
                 oninput="window.filterMemories()" />
             </div>
+            <button type="button" class="btn-primary" id="uploadImageTrigger" onclick="window.openUploadImageModal()" style="flex-shrink: 0; margin-left: auto;">
+              <span>UPLOAD IMAGE</span>
+            </button>
           </div>
           <div class="memories-grid" id="memoriesGrid">
             <!-- Images populated dynamically -->
           </div>
-          <button type="button" class="btn-primary floating-upload-btn" id="uploadImageTrigger"
-            onclick="window.openUploadImageModal()" style="display:none;"><span>UPLOAD IMAGE</span></button>
         </div>
 
-        <!-- CHAT PANEL -->
+      </div>
+    </section>
+
+    <!-- CHAT PANEL -->
         <div id="chatPanel" class="chat-panel">
           <!-- User List View -->
           <div id="chatUserListContainer" class="chat-view-container">
@@ -2809,7 +2805,9 @@
           </div>
         </div>
 
-        <!-- FIREBASE -->
+      </main>
+
+      <!-- FIREBASE -->
         <script type="module">
           // ═════════════════════════════════════=
           //  FIREBASE IMPORTS & CONFIG
