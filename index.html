@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dnmx — Clan Headquarters</title>
-  <link rel="icon" type="image/png" href="Dnmx Logo.png.png" />
+  <link rel="icon" type="image/png" href="Dnmx.png" />
   <link
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
@@ -2296,6 +2296,74 @@
         height: calc(100vh - 70px);
       }
     }
+
+    /* --- USER AVATAR & EDIT PROFILE STYLES --- */
+    .avatar-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--crimson);
+      background: var(--dark);
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      padding: 0;
+      box-shadow: 0 0 10px rgba(220, 20, 60, 0.2);
+    }
+
+    .avatar-btn:hover {
+      transform: scale(1.05);
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(0, 191, 255, 0.4);
+    }
+
+    .avatar-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .profile-modal-avatar-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .profile-modal-avatar-preview-wrap {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 3px solid var(--crimson);
+      overflow: hidden;
+      box-shadow: var(--glow-red);
+      background: var(--dark);
+    }
+
+    .profile-modal-avatar-preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .profile-modal-avatar-upload-btn {
+      font-size: 0.8rem;
+      color: var(--cyan);
+      cursor: pointer;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      transition: color 0.3s ease;
+    }
+
+    .profile-modal-avatar-upload-btn:hover {
+      color: var(--crimson);
+    }
   </style>
 </head>
 
@@ -2844,7 +2912,9 @@
       </div>
     </div>
 
-    <!-- FIREBASE -->
+  </main>
+
+  <!-- FIREBASE -->
     <script type="module">
       // ═════════════════════════════════════=
       //  FIREBASE IMPORTS & CONFIG
@@ -2874,13 +2944,13 @@
       const ADMIN_EMAILS = [
         "revivaltechfixes@gmail.com",
         "tntplayertnt8@gmail.com",
-        "onex7.tapx7@gmail.com ",
+        "onex7.tapx7@gmail.com",
         "drglass09yt@gmail.com",
         "cyberelite5253@gmail.com",
         "moedafish11@gmail.com",];
 
       function isAdmin() {
-        return CURRENT_USER && ADMIN_EMAILS.includes(CURRENT_USER.email);
+        return CURRENT_USER && ADMIN_EMAILS.includes(CURRENT_USER.email.trim());
       }
 
       // ═════════════════════════════════════=
@@ -2903,11 +2973,14 @@
       // FIREBASE: Listen for auth state changes
       onAuthStateChanged(auth, async (user) => {
         if (user) {
+          const emailPrefix = user.email.split('@')[0];
           CURRENT_USER = {
             uid: user.uid,
             email: user.email,
-            name: user.displayName || user.email.split('@')[0],
-            ingameName: user.displayName || user.email.split('@')[0]
+            name: emailPrefix,
+            ingameName: emailPrefix,
+            avatarUrl: '',
+            bio: ''
           };
 
           try {
@@ -2917,6 +2990,8 @@
               const userData = userDocSnap.data();
               CURRENT_USER.ingameName = userData.ingameName || CURRENT_USER.ingameName;
               CURRENT_USER.name = userData.name || CURRENT_USER.name;
+              CURRENT_USER.avatarUrl = userData.avatarUrl || '';
+              CURRENT_USER.bio = userData.bio || '';
 
               // Update active heartbeat
               await updateDoc(userDocRef, {
@@ -2929,6 +3004,8 @@
                 email: user.email,
                 name: CURRENT_USER.name,
                 ingameName: CURRENT_USER.ingameName,
+                avatarUrl: '',
+                bio: '',
                 lastActive: serverTimestamp()
               });
             }
@@ -2960,7 +3037,16 @@
         const uploadImageTrigger = document.getElementById('uploadImageTrigger');
         if (!area) return;
         if (CURRENT_USER) {
-          area.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><button class="btn-secondary" onclick="signOutUser()">LOG OUT</button></div>`;
+          const defaultAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cccccc" width="40" height="40" style="background:%23222222"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+          const avatarSrc = CURRENT_USER.avatarUrl || defaultAvatar;
+
+          area.innerHTML = `
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="avatar-btn" onclick="window.openEditProfileModal()" title="Edit Profile">
+                <img src="${avatarSrc}" alt="Avatar" />
+              </button>
+            </div>
+          `;
           if (chatToggle) chatToggle.style.display = '';
           if (uploadImageTrigger) uploadImageTrigger.style.display = '';
         } else {
@@ -2968,6 +3054,111 @@
           if (chatToggle) chatToggle.style.display = 'none';
           if (uploadImageTrigger) uploadImageTrigger.style.display = 'none';
           closeChatPanel();
+        }
+      }
+
+      function openEditProfileModal() {
+        if (!CURRENT_USER) return;
+        
+        const defaultAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cccccc" width="40" height="40" style="background:%23222222"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+        const avatarSrc = CURRENT_USER.avatarUrl || defaultAvatar;
+        const currentBio = CURRENT_USER.bio || '';
+        
+        document.getElementById('modalContent').innerHTML = `
+          <h2 class="modal-title">Edit Profile</h2>
+          <p class="modal-subtitle">Update your profile details.</p>
+          <form id="editProfileForm" onsubmit="window.submitEditProfile(event)">
+            <div class="profile-modal-avatar-container">
+              <div class="profile-modal-avatar-preview-wrap">
+                <img id="profileAvatarPreview" class="profile-modal-avatar-preview" src="${avatarSrc}" alt="Avatar Preview" />
+              </div>
+              <label class="profile-modal-avatar-upload-btn">
+                Change Photo
+                <input type="file" id="profileAvatarInput" accept="image/*" onchange="window.previewAvatarUpload(this)" style="display:none;" />
+              </label>
+            </div>
+            <label>
+              Username (Read-Only)
+              <input type="text" value="${CURRENT_USER.ingameName}" disabled style="opacity:0.6; cursor:not-allowed;" />
+            </label>
+            <label>
+              Email (Read-Only)
+              <input type="text" value="${CURRENT_USER.email}" disabled style="opacity:0.6; cursor:not-allowed;" />
+            </label>
+            <label>
+              Display Name
+              <input type="text" id="profileDisplayNameInput" placeholder="Enter display name" value="${CURRENT_USER.name}" required />
+            </label>
+            <label>
+              Bio
+              <textarea id="profileBioInput" placeholder="Tell us about yourself..." style="width:100%; min-height:80px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; color:#fff; padding:10px; margin-top:6px; resize:vertical; font-family:inherit;">${currentBio}</textarea>
+            </label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; flex-wrap:wrap; gap:14px;">
+              <button type="button" class="btn-secondary" onclick="signOutUser()" style="border-color:#ff4444; color:#ff4444;">LOG OUT</button>
+              <div style="display:flex; gap:14px;">
+                <button type="button" class="btn-secondary" onclick="closeModal()">CANCEL</button>
+                <button type="submit" class="btn-primary"><span>SAVE CHANGES</span></button>
+              </div>
+            </div>
+            <p id="profileEditError" style="margin-top:14px; color:#ff7b7b; font-size:0.9rem; min-height:20px;"></p>
+          </form>
+        `;
+        openModal();
+      }
+
+      function previewAvatarUpload(inputEl) {
+        const file = inputEl.files[0];
+        if (file) {
+          compressImage(file).then(dataUrl => {
+            const previewEl = document.getElementById('profileAvatarPreview');
+            if (previewEl) {
+              previewEl.src = dataUrl;
+            }
+          }).catch(err => console.error("Error compressing avatar preview:", err));
+        }
+      }
+
+      async function submitEditProfile(event) {
+        event.preventDefault();
+        const dispName = document.getElementById('profileDisplayNameInput').value.trim();
+        const bio = document.getElementById('profileBioInput').value.trim();
+        const previewEl = document.getElementById('profileAvatarPreview');
+        const errorEl = document.getElementById('profileEditError');
+        
+        if (!dispName) {
+          if (errorEl) errorEl.textContent = 'Display name cannot be empty.';
+          return;
+        }
+        
+        if (!CURRENT_USER) {
+          if (errorEl) errorEl.textContent = 'User not signed in.';
+          return;
+        }
+        
+        const defaultAvatarPrefix = 'data:image/svg+xml';
+        const isDefaultAvatar = previewEl.src.startsWith(defaultAvatarPrefix);
+        const avatarUrl = isDefaultAvatar ? '' : previewEl.src;
+        
+        try {
+          if (errorEl) errorEl.textContent = 'Saving changes...';
+          
+          const userDocRef = doc(db, 'users', CURRENT_USER.uid);
+          await setDoc(userDocRef, {
+            name: dispName,
+            bio: bio,
+            avatarUrl: avatarUrl,
+            lastActive: serverTimestamp()
+          }, { merge: true });
+          
+          CURRENT_USER.name = dispName;
+          CURRENT_USER.bio = bio;
+          CURRENT_USER.avatarUrl = avatarUrl;
+          
+          updateAuthUI();
+          closeModal();
+        } catch (err) {
+          console.error("Error updating profile:", err);
+          if (errorEl) errorEl.textContent = 'Save failed: ' + err.message;
         }
       }
 
@@ -3123,9 +3314,10 @@
             if (CURRENT_USER && data.uid !== CURRENT_USER.uid) {
               ALL_USERS.push({
                 uid: data.uid,
-                email: data.email || '',
                 name: data.name || '',
                 ingameName: data.ingameName || data.name || 'Unknown',
+                avatarUrl: data.avatarUrl || '',
+                bio: data.bio || '',
                 lastActive: data.lastActive ? data.lastActive.toDate() : null
               });
             }
@@ -3184,15 +3376,23 @@
           return;
         }
 
+        const defaultAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cccccc" width="36" height="36" style="background:%23222222"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+
         container.innerHTML = ALL_USERS.map(user => {
           const online = isUserOnline(user);
+          const avatarSrc = user.avatarUrl || defaultAvatar;
           return `
       <div class="chat-user-card" onclick="window.openChatWithUser('${user.uid}')">
-        <div class="chat-user-info">
-          <span class="chat-user-name">${escapeHTML(user.ingameName)}</span>
-          <span class="chat-user-email">${escapeHTML(user.email)}</span>
+        <div style="display:flex; align-items:center; gap:12px; overflow:hidden; width:80%;">
+          <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; border:1.5px solid var(--crimson); flex-shrink:0;">
+            <img src="${avatarSrc}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
+          </div>
+          <div class="chat-user-info" style="overflow:hidden;">
+            <span class="chat-user-name" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(user.ingameName)}</span>
+            <span class="chat-user-email" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(user.name)}</span>
+          </div>
         </div>
-        <span class="status-dot ${online ? 'online' : 'offline'}" title="${online ? 'Online' : 'Offline'}"></span>
+        <span class="status-dot ${online ? 'online' : 'offline'}" title="${online ? 'Online' : 'Offline'}" style="flex-shrink:0;"></span>
       </div>
     `;
         }).join('');
@@ -3498,13 +3698,17 @@
               ? data.createdAt.toDate()
               : (data.createdAt instanceof Date ? data.createdAt : new Date());
             const formattedDate = createdAtValue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const rawAuthor = data.authorName || data.author || 'Unknown';
+            const cleanAuthor = rawAuthor.includes('@') ? rawAuthor.split('@')[0] : rawAuthor;
+            const initials = data.authorInitials || (cleanAuthor ? cleanAuthor.split(' ').map(w => w[0]).join('').slice(0, 3) : 'UN');
+
             ANNOUNCEMENTS.push({
               id: doc.id,
               title: data.title || '',
               body: data.content || '',
               category: data.category || 'update',
-              author: data.author || 'Unknown',
-              authorInitials: data.authorInitials || (data.author ? data.author.split(' ').map(w => w[0]).join('').slice(0, 3) : 'UN'),
+              author: cleanAuthor,
+              authorInitials: initials,
               imageUrl: data.imageUrl || '',
               date: formattedDate,
               createdAt: createdAtValue,
@@ -3565,13 +3769,14 @@
               ? data.createdAt.toDate()
               : (data.createdAt instanceof Date ? data.createdAt : new Date());
             const assignedName = data.assignedTo || data.assignedBy || 'Unknown';
+            const cleanAssignedName = assignedName.includes('@') ? assignedName.split('@')[0] : assignedName;
             TASKS.push({
               id: doc.id,
               title: data.title || '',
               details: data.details || '',
               category: data.category || 'support',
-              assignedTo: assignedName,
-              assignedInitials: assignedName.split(' ').map(w => w[0]).join('').slice(0, 3),
+              assignedTo: cleanAssignedName,
+              assignedInitials: cleanAssignedName.split(' ').map(w => w[0]).join('').slice(0, 3),
               imageUrl: data.imageUrl || '',
               preview: (() => {
                 const collapsed = collapseNewlines(data.details || '');
@@ -5061,6 +5266,11 @@
       window.previewProofFile = previewProofFile;
       window.openSubmitProofModal = openSubmitProofModal;
       window.submitTaskProof = submitTaskProof;
+
+      // Expose Profile functions
+      window.openEditProfileModal = openEditProfileModal;
+      window.previewAvatarUpload = previewAvatarUpload;
+      window.submitEditProfile = submitEditProfile;
 
       //  INIT
       // ══════════════════════════════════════
