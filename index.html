@@ -2194,6 +2194,7 @@
       flex-direction: column;
       height: 100%;
       width: 100%;
+      position: relative;
     }
 
     .chat-header {
@@ -2995,19 +2996,72 @@
           </div>
           <button class="chat-close-btn" onclick="window.toggleChatPanel()">✕</button>
         </div>
+
+        <!-- Emoji Picker Popup -->
+        <div id="chatEmojiPicker" class="chat-picker-overlay" style="display: none;">
+          <div class="emoji-grid">
+            <span class="emoji-item" onclick="window.insertEmoji('😀')">😀</span>
+            <span class="emoji-item" onclick="window.insertEmoji('😂')">😂</span>
+            <span class="emoji-item" onclick="window.insertEmoji('🔥')">🔥</span>
+            <span class="emoji-item" onclick="window.insertEmoji('👑')">👑</span>
+            <span class="emoji-item" onclick="window.insertEmoji('⚔️')">⚔️</span>
+            <span class="emoji-item" onclick="window.insertEmoji('🛡️')">🛡️</span>
+            <span class="emoji-item" onclick="window.insertEmoji('🏆')">🏆</span>
+            <span class="emoji-item" onclick="window.insertEmoji('🎮')">🎮</span>
+            <span class="emoji-item" onclick="window.insertEmoji('💀')">💀</span>
+            <span class="emoji-item" onclick="window.insertEmoji('👀')">👀</span>
+            <span class="emoji-item" onclick="window.insertEmoji('👍')">👍</span>
+            <span class="emoji-item" onclick="window.insertEmoji('❤️')">❤️</span>
+            <span class="emoji-item" onclick="window.insertEmoji('👏')">👏</span>
+            <span class="emoji-item" onclick="window.insertEmoji('🎉')">🎉</span>
+            <span class="emoji-item" onclick="window.insertEmoji('💥')">💥</span>
+            <span class="emoji-item" onclick="window.insertEmoji('💯')">💯</span>
+            <span class="emoji-item" onclick="window.insertEmoji('🚀')">🚀</span>
+            <span class="emoji-item" onclick="window.insertEmoji('✨')">✨</span>
+          </div>
+        </div>
+
+        <!-- GIF Picker Popup -->
+        <div id="chatGifPicker" class="chat-picker-overlay" style="display: none;">
+          <div class="gif-search-bar">
+            <input type="text" id="gifSearchInput" placeholder="Search Giphy..."
+              oninput="window.handleGifSearch(this.value)" />
+            <button class="chat-action-btn" style="width: 30px; height: 30px; font-size: 0.8rem;"
+              onclick="window.toggleGifPicker()">✕</button>
+          </div>
+          <div class="gif-results-grid" id="gifResultsContainer">
+            <!-- GIFs populate here -->
+          </div>
+        </div>
+
         <div class="chat-messages" id="chatMessagesBody">
           <!-- Messages populated dynamically -->
         </div>
+
         <div id="chatTypingIndicator" class="chat-typing-indicator" style="display: none;">
           <span id="chatTypingText"></span>
           <div class="typing-dots">
             <span></span><span></span><span></span>
           </div>
         </div>
+
+        <div id="chatMediaPreview" class="chat-media-preview" style="display: none;">
+          <img id="chatMediaPreviewImg" src="" />
+          <button class="remove-preview-btn" onclick="window.removeChatMedia()">✕</button>
+        </div>
+
         <div class="chat-input-area">
+          <input type="file" id="chatMediaFileInput" accept="image/*" style="display: none;"
+            onchange="window.handleChatMediaSelected(this)" />
+          <button class="chat-action-btn" onclick="document.getElementById('chatMediaFileInput').click()"
+            title="Upload Image">+</button>
           <textarea id="chatMessageInput" placeholder="Write a message..." rows="1"
             onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); window.sendChatMessage(); }"
             oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'; window.handleTypingInput();"></textarea>
+          <button class="chat-action-btn" onclick="window.toggleEmojiPicker()" title="Emojis"
+            style="font-size: 1.1rem; padding: 0 4px;">😀</button>
+          <button class="chat-action-btn" onclick="window.toggleGifPicker()" title="GIFs"
+            style="font-size: 0.7rem; font-family:'Orbitron', sans-serif; font-weight:700; padding: 0 6px;">GIF</button>
           <button class="btn-primary chat-send-btn" onclick="window.sendChatMessage()">
             <span>SEND</span>
           </button>
@@ -3087,6 +3141,7 @@
     let unsubscribeTypingState = null;
     let typingTimeout = null;
     let isCurrentlyTyping = false;
+    let CHAT_SELECTED_MEDIA_BASE64 = '';
 
     // FIREBASE: Listen for auth state changes
     onAuthStateChanged(auth, async (user) => {
@@ -3601,6 +3656,160 @@
       }
       const indicatorEl = document.getElementById('chatTypingIndicator');
       if (indicatorEl) indicatorEl.style.display = 'none';
+
+      const emojiPicker = document.getElementById('chatEmojiPicker');
+      if (emojiPicker) emojiPicker.style.display = 'none';
+
+      const gifPicker = document.getElementById('chatGifPicker');
+      if (gifPicker) gifPicker.style.display = 'none';
+
+      removeChatMedia();
+    }
+
+    const CURATED_GIFS = [
+      { title: "GG", url: "https://media.giphy.com/media/3o7TKSjRrfIPjei1fG/giphy.gif" },
+      { title: "Victory", url: "https://media.giphy.com/media/26xBI73gWquCBBCDe/giphy.gif" },
+      { title: "Hype", url: "https://media.giphy.com/media/l3jdneR1TpH5N0U5q/giphy.gif" },
+      { title: "Rage", url: "https://media.giphy.com/media/3o7qE0gCO5LXcIVb6E/giphy.gif" },
+      { title: "Laugh", url: "https://media.giphy.com/media/10JhviFuU2gWD6/giphy.gif" },
+      { title: "Mind Blown", url: "https://media.giphy.com/media/22uq5t70s9w1W/giphy.gif" },
+      { title: "Facepalm", url: "https://media.giphy.com/media/3og0INyM8C97SYBYo8/giphy.gif" },
+      { title: "Dance", url: "https://media.giphy.com/media/14uQ3cOFteQHQs/giphy.gif" }
+    ];
+
+    async function searchGiphy(queryText = '') {
+      const container = document.getElementById('gifResultsContainer');
+      if (!container) return;
+
+      container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:0.8rem;text-align:center;padding:10px;">Loading GIFs...</div>';
+
+      const apiKey = 'dc6zaTOxFJmzC';
+      const limit = 8;
+      const url = queryText
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(queryText)}&limit=${limit}`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Giphy API error");
+        const json = await response.json();
+        const gifs = json.data || [];
+
+        if (gifs.length === 0) {
+          container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:0.8rem;text-align:center;padding:10px;">No GIFs found</div>';
+          return;
+        }
+
+        container.innerHTML = gifs.map(gif => {
+          const gifUrl = gif.images.fixed_height.url;
+          return `<img src="${gifUrl}" onclick="window.sendGifMessage('${gifUrl}')" style="width:100%;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='none'" />`;
+        }).join('');
+      } catch (err) {
+        console.error("Giphy fetch failed, using curated GIFs:", err);
+        container.innerHTML = CURATED_GIFS.map(gif => {
+          return `<img src="${gif.url}" onclick="window.sendGifMessage('${gif.url}')" style="width:100%;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='none'" />`;
+        }).join('');
+      }
+    }
+
+    async function sendGifMessage(gifUrl) {
+      if (!CURRENT_USER || !ACTIVE_CHAT_USER) return;
+
+      const uids = [CURRENT_USER.uid, ACTIVE_CHAT_USER.uid].sort();
+      const chatId = uids.join('_');
+
+      try {
+        await addDoc(collection(db, 'messages'), {
+          chatId: chatId,
+          senderUid: CURRENT_USER.uid,
+          senderName: CURRENT_USER.ingameName || CURRENT_USER.name,
+          receiverUid: ACTIVE_CHAT_USER.uid,
+          text: '',
+          imageUrl: gifUrl,
+          createdAt: serverTimestamp()
+        });
+
+        const picker = document.getElementById('chatGifPicker');
+        if (picker) picker.style.display = 'none';
+      } catch (error) {
+        console.error("Error sending GIF message:", error);
+      }
+    }
+
+    function toggleEmojiPicker() {
+      const picker = document.getElementById('chatEmojiPicker');
+      const gifPicker = document.getElementById('chatGifPicker');
+      if (gifPicker) gifPicker.style.display = 'none';
+
+      if (picker) {
+        const isHidden = picker.style.display === 'none';
+        picker.style.display = isHidden ? 'flex' : 'none';
+      }
+    }
+
+    function toggleGifPicker() {
+      const picker = document.getElementById('chatGifPicker');
+      const emojiPicker = document.getElementById('chatEmojiPicker');
+      if (emojiPicker) emojiPicker.style.display = 'none';
+
+      if (picker) {
+        const isHidden = picker.style.display === 'none';
+        picker.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) {
+          const searchInput = document.getElementById('gifSearchInput');
+          if (searchInput) searchInput.value = '';
+          searchGiphy();
+        }
+      }
+    }
+
+    function insertEmoji(emoji) {
+      const inputEl = document.getElementById('chatMessageInput');
+      if (inputEl) {
+        const start = inputEl.selectionStart;
+        const end = inputEl.selectionEnd;
+        const text = inputEl.value;
+        inputEl.value = text.substring(0, start) + emoji + text.substring(end);
+        inputEl.focus();
+        inputEl.selectionStart = inputEl.selectionEnd = start + emoji.length;
+        inputEl.dispatchEvent(new Event('input'));
+      }
+
+      const picker = document.getElementById('chatEmojiPicker');
+      if (picker) picker.style.display = 'none';
+    }
+
+    let gifSearchTimeout = null;
+    function handleGifSearch(val) {
+      if (gifSearchTimeout) clearTimeout(gifSearchTimeout);
+      gifSearchTimeout = setTimeout(() => {
+        searchGiphy(val.trim());
+      }, 400);
+    }
+
+    function handleChatMediaSelected(inputEl) {
+      const file = inputEl.files[0];
+      if (file) {
+        compressImage(file).then(dataUrl => {
+          CHAT_SELECTED_MEDIA_BASE64 = dataUrl;
+          const previewEl = document.getElementById('chatMediaPreview');
+          const previewImg = document.getElementById('chatMediaPreviewImg');
+          if (previewEl && previewImg) {
+            previewImg.src = dataUrl;
+            previewEl.style.display = 'flex';
+          }
+        }).catch(err => console.error("Error loading chat media:", err));
+      }
+    }
+
+    function removeChatMedia() {
+      CHAT_SELECTED_MEDIA_BASE64 = '';
+      const previewEl = document.getElementById('chatMediaPreview');
+      const previewImg = document.getElementById('chatMediaPreviewImg');
+      if (previewEl) previewEl.style.display = 'none';
+      if (previewImg) previewImg.removeAttribute('src');
+      const fileInput = document.getElementById('chatMediaFileInput');
+      if (fileInput) fileInput.value = '';
     }
 
     // Online state threshold (5 minutes active)
@@ -3733,10 +3942,16 @@
         const isSelf = msg.senderUid === CURRENT_USER.uid;
         const timeStr = msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const messageClass = isSelf ? 'msg-self' : 'msg-other';
+
+        const imageHTML = msg.imageUrl
+          ? `<div style="margin-top: 6px;"><img src="${escapeHTML(msg.imageUrl)}" style="max-width: 100%; max-height: 200px; border-radius: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);" onclick="window.openImageFullModal('${msg.id}', '${msg.imageUrl}', 'Chat Media')" /></div>`
+          : '';
+
         return `
       <div class="msg-row ${isSelf ? 'row-self' : 'row-other'}">
         <div class="msg-bubble ${messageClass}">
-          <div class="msg-text">${parseDiscordFormatting(msg.text)}</div>
+          ${msg.text ? `<div class="msg-text">${parseDiscordFormatting(msg.text)}</div>` : ''}
+          ${imageHTML}
           <div class="msg-time">${timeStr}</div>
         </div>
       </div>
@@ -3752,13 +3967,18 @@
       if (!inputEl) return;
 
       const text = inputEl.value.trim();
-      if (!text || !CURRENT_USER || !ACTIVE_CHAT_USER) return;
+      const hasMedia = CHAT_SELECTED_MEDIA_BASE64 !== '';
+
+      if ((!text && !hasMedia) || !CURRENT_USER || !ACTIVE_CHAT_USER) return;
 
       const uids = [CURRENT_USER.uid, ACTIVE_CHAT_USER.uid].sort();
       const chatId = uids.join('_');
 
+      const mediaBase64 = CHAT_SELECTED_MEDIA_BASE64;
+
       inputEl.value = '';
       inputEl.style.height = '';
+      removeChatMedia();
 
       if (typingTimeout) {
         clearTimeout(typingTimeout);
@@ -3775,6 +3995,7 @@
           senderName: CURRENT_USER.ingameName || CURRENT_USER.name,
           receiverUid: ACTIVE_CHAT_USER.uid,
           text: text,
+          imageUrl: mediaBase64,
           createdAt: serverTimestamp()
         });
 
@@ -5814,6 +6035,13 @@
     window.openChatWithUser = openChatWithUser;
     window.sendChatMessage = sendChatMessage;
     window.handleTypingInput = handleTypingInput;
+    window.toggleEmojiPicker = toggleEmojiPicker;
+    window.toggleGifPicker = toggleGifPicker;
+    window.insertEmoji = insertEmoji;
+    window.handleGifSearch = handleGifSearch;
+    window.handleChatMediaSelected = handleChatMediaSelected;
+    window.removeChatMedia = removeChatMedia;
+    window.sendGifMessage = sendGifMessage;
 
     // Expose Memories functions
     window.setupMemoriesListener = setupMemoriesListener;
