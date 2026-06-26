@@ -3763,14 +3763,14 @@
     }
 
     // FIREBASE: Save announcement to Firestore
-    async function saveAnnouncementToFirestore(category, title, body, authorName, imageUrl = '') {
+    async function saveAnnouncementToFirestore(category, title, body, authorName, authorInitials, imageUrl = '') {
       try {
         await addDoc(collection(db, 'announcements'), {
           title: title,
           content: body,
           author: CURRENT_USER ? CURRENT_USER.email : 'unknown@example.com',
           authorName: authorName,
-          authorInitials: authorName ? authorName.split(' ').map(w => w[0]).join('').slice(0, 3) : '',
+          authorInitials: authorInitials || (authorName ? authorName.split(' ').map(w => w[0]).join('').slice(0, 3) : ''),
           authorPhotoUrl: CURRENT_USER ? (CURRENT_USER.photoURL || '') : '',
           createdAt: serverTimestamp(),
           imageUrl: imageUrl,
@@ -3806,14 +3806,11 @@
           const createdAtValue = data.createdAt && typeof data.createdAt.toDate === 'function'
             ? data.createdAt.toDate()
             : (data.createdAt instanceof Date ? data.createdAt : new Date());
-          const assignedName = data.assignedTo || data.assignedBy || 'Unknown';
           TASKS.push({
             id: doc.id,
             title: data.title || '',
             details: data.details || '',
             category: data.category || 'support',
-            assignedTo: assignedName,
-            assignedInitials: assignedName.split(' ').map(w => w[0]).join('').slice(0, 3),
             author: data.author || 'Unknown',
             authorName: data.authorName || data.author || 'Unknown',
             authorInitials: data.authorInitials || (data.authorName ? data.authorName.split(' ').map(w => w[0]).join('').slice(0, 3) : (data.author ? data.author.split(' ').map(w => w[0]).join('').slice(0, 3) : 'UN')),
@@ -3834,17 +3831,16 @@
     }
 
     // FIREBASE: Save task to Firestore
-    async function saveTaskToFirestore(category, title, details, assignedTo, authorName, imageUrl = '') {
+    async function saveTaskToFirestore(category, title, details, authorName, authorInitials, imageUrl = '') {
       try {
         await addDoc(collection(db, 'tasks'), {
           category: category,
           task: title,
           title: title,
           details: details,
-          assignedTo: assignedTo,
           author: CURRENT_USER ? CURRENT_USER.email : 'unknown@example.com',
-          assignedBy: assignedTo,
           authorName: authorName,
+          authorInitials: authorInitials,
           authorPhotoUrl: CURRENT_USER ? (CURRENT_USER.photoURL || '') : '',
           completed: false,
           imageUrl: imageUrl,
@@ -4267,7 +4263,7 @@
         else if (taskFilter === 'completed') matchFilter = t.completed === true;
         else if (taskFilter === 'due') matchFilter = t.completed !== true;
         else matchFilter = t.category === taskFilter;
-        const matchSearch = !search || t.title.toLowerCase().includes(search) || t.preview.toLowerCase().includes(search) || t.assignedTo.toLowerCase().includes(search) || (t.authorName || '').toLowerCase().includes(search);
+        const matchSearch = !search || t.title.toLowerCase().includes(search) || t.preview.toLowerCase().includes(search) || (t.authorName || '').toLowerCase().includes(search);
         return matchFilter && matchSearch;
       }).sort((a, b) => b.createdAt - a.createdAt);
       const grid = document.getElementById('taskGrid');
@@ -4282,10 +4278,6 @@
         const dueDisplay = t.completed
           ? '<span class="task-due-completed">Completed</span>'
           : '<span class="task-due-pending">Due</span>';
-        const userData = getUserDataByIngameName(t.assignedTo);
-        const assignedPhotoUrl = userData ? userData.photoURL : '';
-        const assignedInitials = userData ? userData.initials : (t.assignedInitials || t.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 3));
-        const assignedDotHTML = getAuthorDotHTML(assignedPhotoUrl, assignedInitials, "width:20px; height:20px; font-size:0.55rem;");
         return `
     <div class="announce-card" onclick="openTaskModal('${t.id}')">
       <div class="announce-card-top">
@@ -4300,11 +4292,6 @@
             <span style="font-size:0.75rem; color:rgba(255,255,255,0.3);">By:</span>
             ${getAuthorDotHTML(t.authorPhotoUrl, t.authorInitials, "width:20px; height:20px; font-size:0.55rem;")}
             <span style="color:rgba(255,255,255,0.7);">${t.authorName || t.author}</span>
-          </div>
-          <div class="announce-author" style="margin-top:2px;">
-            <span style="font-size:0.75rem; color:rgba(255,255,255,0.3);">To:</span>
-            ${assignedDotHTML}
-            <span style="color:rgba(255,255,255,0.7);">${t.assignedTo}</span>
           </div>
         </div>
         ${!t.completed ? `
@@ -4350,8 +4337,7 @@
       }
 
       const authorVal = CURRENT_USER ? CURRENT_USER.ingameName : '';
-      const initialsVal = CURRENT_USER ? (CURRENT_USER.ingameName.split(' ').map(w => w[0]).join('').slice(0, 3)) : '';
-      const readOnly = CURRENT_USER ? 'readonly' : '';
+      const initialsVal = CURRENT_USER ? (CURRENT_USER.initials || CURRENT_USER.ingameName.split(' ').map(w => w[0]).join('').slice(0, 3)) : '';
       document.getElementById('modalContent').innerHTML = `
     <h2 class="modal-title">New Announcement</h2>
     <p class="modal-subtitle" style="margin-bottom:18px;">Choose a category, enter the title, body, and your in-game name.</p>
@@ -4377,11 +4363,11 @@
       </label>
       <label>
         Your In-Game Name
-        <input type="text" id="announceAuthor" placeholder="Enter your in-game name" value="${authorVal}" ${readOnly} required />
+        <input type="text" id="announceAuthor" placeholder="Enter your in-game name" value="${escapeHTML(authorVal)}" required />
       </label>
       <label>
         Initials
-        <input type="text" id="announceInitials" placeholder="Enter your initials" value="${initialsVal}" ${readOnly} required />
+        <input type="text" id="announceInitials" placeholder="Enter your initials" value="${escapeHTML(initialsVal)}" required />
       </label>
       <label style="margin-top: 14px;">
         Attach Image (Optional)
@@ -4420,7 +4406,7 @@
       try {
         const imgPreview = document.getElementById('announceImagePreview');
         const imageUrl = imgPreview && imgPreview.src ? imgPreview.src : '';
-        await saveAnnouncementToFirestore(category, title, body, authorName, imageUrl);
+        await saveAnnouncementToFirestore(category, title, body, authorName, initials, imageUrl);
         closeModal();
         announceFilter = 'all';
         document.querySelectorAll('#announceFilters .chip').forEach(c => c.classList.remove('active'));
@@ -4446,8 +4432,7 @@
       }
 
       const assignedName = CURRENT_USER ? CURRENT_USER.ingameName : '';
-      const initialsVal = CURRENT_USER ? (CURRENT_USER.ingameName.split(' ').map(w => w[0]).join('').slice(0, 3)) : '';
-      const readOnly = CURRENT_USER ? 'readonly' : '';
+      const initialsVal = CURRENT_USER ? (CURRENT_USER.initials || CURRENT_USER.ingameName.split(' ').map(w => w[0]).join('').slice(0, 3)) : '';
       document.getElementById('modalContent').innerHTML = `
     <h2 class="modal-title">Assign New Task</h2>
     <p class="modal-subtitle" style="margin-bottom:18px;">Enter the task details and your in-game name.</p>
@@ -4473,11 +4458,11 @@
       </label>
       <label>
         Your In-Game Name
-        <input type="text" id="assignTaskName" placeholder="Enter your in-game name" value="${assignedName}" ${readOnly} required />
+        <input type="text" id="assignTaskName" placeholder="Enter your in-game name" value="${escapeHTML(assignedName)}" required />
       </label>
       <label>
         Initials
-        <input type="text" id="assignTaskInitials" placeholder="Enter your initials" value="${initialsVal}" ${readOnly} required />
+        <input type="text" id="assignTaskInitials" placeholder="Enter your initials" value="${escapeHTML(initialsVal)}" required />
       </label>
       <label style="margin-top: 14px;">
         Attach Image (Optional)
@@ -4516,7 +4501,7 @@
       try {
         const imgPreview = document.getElementById('taskImagePreview');
         const imageUrl = imgPreview && imgPreview.src ? imgPreview.src : '';
-        await saveTaskToFirestore(category, title, details, assignedTo, assignedTo, imageUrl);
+        await saveTaskToFirestore(category, title, details, assignedTo, initials, imageUrl);
         closeModal();
         taskFilter = 'all';
         document.querySelectorAll('#taskFilters .chip').forEach(c => c.classList.remove('active'));
@@ -4534,10 +4519,6 @@
       const dueDisplay = t.completed
         ? '<span class="task-due-completed">Completed</span>'
         : '<span class="task-due-pending">Due</span>';
-      const userData = getUserDataByIngameName(t.assignedTo);
-      const assignedPhotoUrl = userData ? userData.photoURL : '';
-      const assignedInitials = userData ? userData.initials : (t.assignedInitials || t.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 3));
-      const assignedDotHTML = getAuthorDotHTML(assignedPhotoUrl, assignedInitials, "width:28px;height:28px;border-radius:50%;font-size:.7rem;");
       document.getElementById('modalContent').innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
       <span class="featured-tag tag-${t.category}" style="margin:0;">${t.category.toUpperCase()}</span>
@@ -4548,10 +4529,6 @@
       <div style="display:flex; align-items:center; gap:8px;">
         ${getAuthorDotHTML(t.authorPhotoUrl, t.authorInitials, "width:28px;height:28px;border-radius:50%;font-size:.7rem;")}
         <span>Assigned by ${t.authorName || t.author}</span>
-      </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        ${assignedDotHTML}
-        <span>Assigned to ${t.assignedTo}</span>
       </div>
     </div>
     <div class="modal-divider"></div>
@@ -4706,10 +4683,6 @@
               Task Description
               <textarea id="assignTaskDetails" placeholder="Describe the task in detail" required>${escapeHTML(t.details)}</textarea>
             </label>
-            <label>
-              Assigned To
-              <input type="text" id="assignTaskName" placeholder="Enter name" value="${escapeHTML(t.assignedTo)}" required />
-            </label>
             <label style="margin-top: 14px;">
               Update Image (Optional)
               <input type="file" id="taskImageFile" accept="image/*" onchange="window.previewImageUpload(this, 'taskImagePreview')" />
@@ -4732,25 +4705,21 @@
       const category = document.getElementById('assignTaskCategory').value;
       const title = document.getElementById('assignTaskTitle').value.trim();
       const details = document.getElementById('assignTaskDetails').value.trim();
-      const assignedTo = document.getElementById('assignTaskName').value.trim();
       const errorEl = document.getElementById('taskEditFormError');
       const imgPreview = document.getElementById('taskImagePreview');
       const imageUrl = imgPreview && imgPreview.src ? imgPreview.src : '';
 
-      if (!category || !title || !details || !assignedTo) {
+      if (!category || !title || !details) {
         if (errorEl) errorEl.textContent = 'All fields are required.';
         return;
       }
 
       try {
         const docRef = doc(db, 'tasks', id);
-        const initials = assignedTo.split(' ').map(w => w[0]).join('').slice(0, 3);
         await updateDoc(docRef, {
           category: category,
           title: title,
           details: details,
-          assignedTo: assignedTo,
-          assignedInitials: initials,
           imageUrl: imageUrl
         });
         closeModal();
