@@ -162,22 +162,31 @@
       left: 0;
       right: 0;
       z-index: 1000;
-      height: 70px;
+      height: 60px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 40px;
+      padding: 0 16px;
       background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(20px);
       border-bottom: 1px solid rgba(220, 20, 60, 0.2);
       box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
     }
 
+    nav button,
+    nav .btn-secondary,
+    nav .btn-primary,
+    nav #authArea button {
+      padding: 6px 12px !important;
+      font-size: 0.58rem !important;
+      letter-spacing: 0.12em !important;
+    }
+
     .nav-logo {
       font-family: 'Orbitron', sans-serif;
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       font-weight: 900;
-      letter-spacing: 0.15em;
+      letter-spacing: 0.12em;
       background: linear-gradient(135deg, var(--crimson), var(--cyan), var(--crimson));
       background-size: 300% 300%;
       -webkit-background-clip: text;
@@ -191,18 +200,18 @@
 
     .nav-links {
       display: flex;
-      gap: 8px;
+      gap: 2px;
       list-style: none;
     }
 
     .nav-links li a {
       font-family: 'Orbitron', sans-serif;
-      font-size: 0.68rem;
+      font-size: 0.58rem;
       font-weight: 600;
-      letter-spacing: 0.2em;
+      letter-spacing: 0.12em;
       color: rgba(255, 255, 255, 0.55);
       text-decoration: none;
-      padding: 8px 18px;
+      padding: 6px 8px;
       border: 1px solid transparent;
       border-radius: 4px;
       transition: all 0.3s ease;
@@ -271,7 +280,7 @@
     .mobile-menu {
       display: none;
       position: fixed;
-      top: 70px;
+      top: 60px;
       left: 0;
       right: 0;
       background: rgba(0, 0, 0, 0.97);
@@ -1411,6 +1420,7 @@
       position: relative;
       z-index: 1;
       flex-shrink: 0;
+      overflow: hidden;
     }
 
     .member-name {
@@ -2056,7 +2066,7 @@
     }
 
     /* ── RESPONSIVE ── */
-    @media (max-width: 900px) {
+    @media (max-width: 1100px) {
       .why-inner {
         grid-template-columns: 1fr;
         gap: 40px;
@@ -2421,8 +2431,16 @@
         width: 100vw;
         max-width: 100vw;
         min-width: 100vw;
-        top: 70px;
-        height: calc(100vh - 70px);
+        top: 60px;
+        height: calc(100vh - 60px);
+      }
+      nav button.btn-secondary:not(#authButton),
+      nav button.btn-primary,
+      nav #chatToggleButton {
+        display: none !important;
+      }
+      .mobile-menu {
+        top: 60px;
       }
     }
   </style>
@@ -2470,6 +2488,7 @@
     <a href="#" class="mobile-nav-link" data-page="tasks">TASKS</a>
     <a href="#" class="mobile-nav-link" data-page="announcements">ANNOUNCEMENTS</a>
     <a href="#" class="mobile-nav-link" data-page="memories">MEMORIES</a>
+    <div id="mobileAuthArea" style="margin-top: 10px; padding: 10px 20px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 10px;"></div>
   </div>
 
   <main>
@@ -2871,12 +2890,6 @@
       </div>
 
       <div class="principles-section" style="padding-top:20px;">
-        <div style="display:flex; justify-content:center; gap:20px; margin-bottom:40px;">
-          <button class="chip active" id="btnImagesArchive" onclick="window.switchMemoriesTab('images')">IMAGES
-            ARCHIVE</button>
-          <button class="chip" id="btnHonorableMentions" onclick="window.switchMemoriesTab('honors')">HONORABLE
-            MENTIONS</button>
-        </div>
 
         <!-- Images Archive Sub Section -->
         <div id="subSectionImages" class="memories-sub-section">
@@ -3077,15 +3090,40 @@
 
     function updateAuthUI() {
       const area = document.getElementById('authArea');
+      const mobileArea = document.getElementById('mobileAuthArea');
       const chatToggle = document.getElementById('chatToggleButton');
       const uploadImageTrigger = document.getElementById('uploadImageTrigger');
       if (!area) return;
       if (CURRENT_USER) {
-        area.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><button class="btn-secondary" onclick="promptProfileSetupModal()">PROFILE</button><button class="btn-secondary" onclick="signOutUser()">LOG OUT</button></div>`;
+        const pfpHTML = CURRENT_USER.photoURL
+          ? `<img src="${escapeHTML(CURRENT_USER.photoURL)}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--crimson); cursor: pointer;" onclick="promptProfileSetupModal()" />`
+          : `<div class="author-dot" style="width: 24px; height: 24px; font-size: 0.6rem; cursor: pointer; margin: 0;" onclick="promptProfileSetupModal()">${escapeHTML(CURRENT_USER.initials || 'UN')}</div>`;
+
+        area.innerHTML = `
+          <div style="display:flex;gap:8px;align-items:center">
+            ${pfpHTML}
+            <button class="btn-secondary" onclick="promptProfileSetupModal()">PROFILE</button>
+            <button class="btn-secondary" onclick="signOutUser()">LOG OUT</button>
+          </div>
+        `;
+
+        if (mobileArea) {
+          mobileArea.innerHTML = `
+            <button class="btn-secondary" onclick="window.toggleChatPanel(); closeMobile();" style="width: 100%;">CHAT</button>
+            <button class="btn-secondary" onclick="promptProfileSetupModal(); closeMobile();" style="width: 100%;">PROFILE</button>
+            <button class="btn-secondary" onclick="signOutUser(); closeMobile();" style="width: 100%;">LOG OUT</button>
+          `;
+        }
+
         if (chatToggle) chatToggle.style.display = '';
         if (uploadImageTrigger) uploadImageTrigger.style.display = '';
       } else {
         area.innerHTML = `<button class="btn-secondary" id="authButton" onclick="openLoginModal()">LOG IN</button>`;
+        if (mobileArea) {
+          mobileArea.innerHTML = `
+            <button class="btn-secondary" onclick="openLoginModal(); closeMobile();" style="width: 100%;">LOG IN</button>
+          `;
+        }
         if (chatToggle) chatToggle.style.display = 'none';
         if (uploadImageTrigger) uploadImageTrigger.style.display = 'none';
         closeChatPanel();
@@ -3663,6 +3701,15 @@
       return html;
     }
 
+    // Helper to get user photo/initials by In-Game Name
+    function getUserDataByIngameName(ingameName) {
+      if (!ingameName) return null;
+      if (CURRENT_USER && CURRENT_USER.ingameName === ingameName) {
+        return CURRENT_USER;
+      }
+      return ALL_USERS.find(u => u.ingameName === ingameName) || null;
+    }
+
     // ═════════════════════════════════════=
     //  FIRESTORE ANNOUNCEMENTS
     // ═════════════════════════════════════=
@@ -3911,7 +3958,6 @@
       if (page === 'announcements') renderAnnouncements();
       if (page === 'memories') {
         setupMemoriesListener();
-        switchMemoriesTab('images');
       }
     }
 
@@ -4067,24 +4113,34 @@
         return;
       }
 
-      grid.innerHTML = filtered.map(m => `
+      grid.innerHTML = filtered.map(m => {
+        const uData = getUserDataByIngameName(m.name);
+        const avatarHTML = uData && uData.photoURL
+          ? `<img src="${escapeHTML(uData.photoURL)}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`
+          : escapeHTML(m.initials);
+        return `
     <div class="member-card" onclick="openMemberModal(${m.id})">
-      <div class="member-avatar">${m.initials}</div>
+      <div class="member-avatar">${avatarHTML}</div>
       <h3 class="member-name">${m.name}</h3>
       <p class="member-position">${m.position}</p>
       <p class="member-desc-preview">${m.description}</p>
       <div class="member-view-btn">VIEW FULL PROFILE →</div>
     </div>
-  `).join('');
+  `;
+      }).join('');
     }
 
     function filterMembers(type) { renderMembers(type); }
 
     function openMemberModal(id) {
       const m = [...EXEC_MEMBERS, ...MGMT_MEMBERS].find(x => x.id === id);
+      const uData = getUserDataByIngameName(m.name);
+      const avatarHTML = uData && uData.photoURL
+        ? `<img src="${escapeHTML(uData.photoURL)}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`
+        : escapeHTML(m.initials);
       document.getElementById('modalContent').innerHTML = `
     <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;">
-      <div class="member-avatar" style="width:80px;height:80px;font-size:1.8rem;">${m.initials}</div>
+      <div class="member-avatar" style="width:80px;height:80px;font-size:1.8rem;overflow:hidden;display:flex;align-items:center;justify-content:center;">${avatarHTML}</div>
       <div>
         <h2 class="modal-title" style="margin-bottom:4px;">${m.name}</h2>
         <p class="modal-subtitle" style="margin-bottom:0;">${m.position}</p>
@@ -4223,10 +4279,13 @@
         return;
       }
       grid.innerHTML = results.map(t => {
-        const initials = t.assignedInitials || t.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 3);
         const dueDisplay = t.completed
           ? '<span class="task-due-completed">Completed</span>'
           : '<span class="task-due-pending">Due</span>';
+        const userData = getUserDataByIngameName(t.assignedTo);
+        const assignedPhotoUrl = userData ? userData.photoURL : '';
+        const assignedInitials = userData ? userData.initials : (t.assignedInitials || t.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 3));
+        const assignedDotHTML = getAuthorDotHTML(assignedPhotoUrl, assignedInitials, "width:20px; height:20px; font-size:0.55rem;");
         return `
     <div class="announce-card" onclick="openTaskModal('${t.id}')">
       <div class="announce-card-top">
@@ -4244,7 +4303,7 @@
           </div>
           <div class="announce-author" style="margin-top:2px;">
             <span style="font-size:0.75rem; color:rgba(255,255,255,0.3);">To:</span>
-            <div class="author-dot" style="width:20px; height:20px; font-size:0.55rem;">${initials}</div>
+            ${assignedDotHTML}
             <span style="color:rgba(255,255,255,0.7);">${t.assignedTo}</span>
           </div>
         </div>
@@ -4475,6 +4534,10 @@
       const dueDisplay = t.completed
         ? '<span class="task-due-completed">Completed</span>'
         : '<span class="task-due-pending">Due</span>';
+      const userData = getUserDataByIngameName(t.assignedTo);
+      const assignedPhotoUrl = userData ? userData.photoURL : '';
+      const assignedInitials = userData ? userData.initials : (t.assignedInitials || t.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 3));
+      const assignedDotHTML = getAuthorDotHTML(assignedPhotoUrl, assignedInitials, "width:28px;height:28px;border-radius:50%;font-size:.7rem;");
       document.getElementById('modalContent').innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
       <span class="featured-tag tag-${t.category}" style="margin:0;">${t.category.toUpperCase()}</span>
@@ -4487,7 +4550,7 @@
         <span>Assigned by ${t.authorName || t.author}</span>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <div class="author-dot" style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(220,20,60,.5),rgba(0,102,255,.5));display:flex;align-items:center;justify-content:center;font-size:.7rem;">${t.assignedInitials}</div>
+        ${assignedDotHTML}
         <span>Assigned to ${t.assignedTo}</span>
       </div>
     </div>
@@ -4702,25 +4765,7 @@
     let ALL_MEMORIES = [];
     let unsubscribeMemories = null;
 
-    function switchMemoriesTab(tab) {
-      const btnImages = document.getElementById('btnImagesArchive');
-      const btnHonors = document.getElementById('btnHonorableMentions');
-      const subImages = document.getElementById('subSectionImages');
-      const subHonors = document.getElementById('subSectionHonors');
-      if (!btnImages || !btnHonors || !subImages || !subHonors) return;
 
-      if (tab === 'images') {
-        btnImages.classList.add('active');
-        btnHonors.classList.remove('active');
-        subImages.style.display = 'block';
-        subHonors.style.display = 'none';
-      } else {
-        btnImages.classList.remove('active');
-        btnHonors.classList.add('active');
-        subImages.style.display = 'none';
-        subHonors.style.display = 'block';
-      }
-    }
 
     function setupMemoriesListener() {
       if (unsubscribeMemories) unsubscribeMemories();
@@ -5532,7 +5577,6 @@
     window.sendChatMessage = sendChatMessage;
 
     // Expose Memories functions
-    window.switchMemoriesTab = switchMemoriesTab;
     window.setupMemoriesListener = setupMemoriesListener;
     window.filterMemories = filterMemories;
     window.openImageFullModal = openImageFullModal;
