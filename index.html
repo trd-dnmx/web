@@ -2403,7 +2403,8 @@
       background: rgba(0, 0, 0, 0.45);
     }
 
-    .chat-input-area input {
+    .chat-input-area input,
+    .chat-input-area textarea {
       flex: 1;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2413,10 +2414,18 @@
       font-family: 'Rajdhani', sans-serif;
       font-size: 0.9rem;
       outline: none;
-      transition: all 0.25s;
+      transition: border-color 0.25s, box-shadow 0.25s, background-color 0.25s;
+      resize: none;
+      height: 42px;
+      min-height: 42px;
+      max-height: 150px;
+      box-sizing: border-box;
+      line-height: 1.4;
+      overflow-y: auto;
     }
 
-    .chat-input-area input:focus {
+    .chat-input-area input:focus,
+    .chat-input-area textarea:focus {
       border-color: var(--crimson);
       box-shadow: 0 0 10px rgba(220, 20, 60, 0.2);
     }
@@ -2424,6 +2433,55 @@
     .chat-send-btn {
       padding: 8px 16px !important;
       font-size: 0.65rem !important;
+    }
+
+    /* ── TYPING INDICATOR STYLES ── */
+    .chat-typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(0, 0, 0, 0.35);
+      border-top: 1px solid rgba(220, 20, 60, 0.15);
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .typing-dots span {
+      width: 4px;
+      height: 4px;
+      background-color: var(--cyan);
+      border-radius: 50%;
+      display: inline-block;
+      animation: typing-bounce 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dots span:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .typing-dots span:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
+    @keyframes typing-bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0);
+      }
+
+      40% {
+        transform: scale(1);
+      }
     }
 
     @media (max-width: 768px) {
@@ -2940,9 +2998,16 @@
         <div class="chat-messages" id="chatMessagesBody">
           <!-- Messages populated dynamically -->
         </div>
+        <div id="chatTypingIndicator" class="chat-typing-indicator" style="display: none;">
+          <span id="chatTypingText"></span>
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
         <div class="chat-input-area">
-          <input type="text" id="chatMessageInput" placeholder="Write a message..."
-            onkeydown="if(event.key === 'Enter') window.sendChatMessage()" />
+          <textarea id="chatMessageInput" placeholder="Write a message..." rows="1"
+            onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); window.sendChatMessage(); }"
+            oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'; window.handleTypingInput();"></textarea>
           <button class="btn-primary chat-send-btn" onclick="window.sendChatMessage()">
             <span>SEND</span>
           </button>
@@ -2967,7 +3032,7 @@
     // ═════════════════════════════════════=
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js';
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy, getDoc, getDocs, setDoc, where, limit } from 'https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js';
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy, getDoc, getDocs, setDoc, where, limit, or } from 'https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js';
 
     // FIREBASE: Initialize Firebase with your config
     const firebaseConfig = {
@@ -3017,6 +3082,11 @@
     let ACTIVE_CHAT_USER = null;
     let unsubscribeUsers = null;
     let unsubscribeMessages = null;
+    let unsubscribeAllUserMessages = null;
+    let LAST_MESSAGE_MAP = {};
+    let unsubscribeTypingState = null;
+    let typingTimeout = null;
+    let isCurrentlyTyping = false;
 
     // FIREBASE: Listen for auth state changes
     onAuthStateChanged(auth, async (user) => {
@@ -3076,7 +3146,9 @@
 
         // Initialize users buddy list listener
         setupUsersListener();
+        setupAllUserMessagesListener();
       } else {
+        stopChatting();
         CURRENT_USER = null;
         if (unsubscribeUsers) {
           unsubscribeUsers();
@@ -3085,6 +3157,10 @@
         if (unsubscribeMessages) {
           unsubscribeMessages();
           unsubscribeMessages = null;
+        }
+        if (unsubscribeAllUserMessages) {
+          unsubscribeAllUserMessages();
+          unsubscribeAllUserMessages = null;
         }
         ACTIVE_CHAT_USER = null;
       }
@@ -3327,6 +3403,7 @@
 
     // Close chat panel drawer
     function closeChatPanel() {
+      stopChatting();
       const panel = document.getElementById('chatPanel');
       if (panel) {
         panel.classList.remove('open');
@@ -3335,6 +3412,7 @@
 
     // Go back from messaging view to online user buddy list
     function goBackToUserList() {
+      stopChatting();
       ACTIVE_CHAT_USER = null;
       if (unsubscribeMessages) {
         unsubscribeMessages();
@@ -3371,16 +3449,7 @@
           }
         });
 
-        // Sort online users first, then alphabetically
-        ALL_USERS.sort((a, b) => {
-          const aOnline = isUserOnline(a);
-          const bOnline = isUserOnline(b);
-          if (aOnline && !bOnline) return -1;
-          if (!aOnline && bOnline) return 1;
-          return a.ingameName.localeCompare(b.ingameName);
-        });
-
-        renderChatUserList();
+        sortAndRenderUsers();
 
         // Keep header user status updated if a chat is active
         if (ACTIVE_CHAT_USER) {
@@ -3399,6 +3468,139 @@
       }, (error) => {
         console.error('Error listening to users:', error);
       });
+    }
+
+    function sortAndRenderUsers() {
+      ALL_USERS.sort((a, b) => {
+        const aTime = LAST_MESSAGE_MAP[a.uid] ? LAST_MESSAGE_MAP[a.uid].getTime() : 0;
+        const bTime = LAST_MESSAGE_MAP[b.uid] ? LAST_MESSAGE_MAP[b.uid].getTime() : 0;
+
+        if (aTime > 0 && bTime > 0) {
+          return bTime - aTime; // both have messages, sort descending by time
+        }
+        if (aTime > 0 && bTime === 0) {
+          return -1; // a has message, b doesn't -> a comes first
+        }
+        if (aTime === 0 && bTime > 0) {
+          return 1; // b has message, a doesn't -> b comes first
+        }
+        // neither has messages, sort alphabetically
+        return a.ingameName.localeCompare(b.ingameName);
+      });
+
+      renderChatUserList();
+    }
+
+    function setupAllUserMessagesListener() {
+      if (unsubscribeAllUserMessages) unsubscribeAllUserMessages();
+      if (!CURRENT_USER) return;
+
+      const q = query(
+        collection(db, 'messages'),
+        or(
+          where('senderUid', '==', CURRENT_USER.uid),
+          where('receiverUid', '==', CURRENT_USER.uid)
+        )
+      );
+
+      unsubscribeAllUserMessages = onSnapshot(q, (snapshot) => {
+        LAST_MESSAGE_MAP = {};
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const createdAt = data.createdAt && typeof data.createdAt.toDate === 'function'
+            ? data.createdAt.toDate()
+            : (data.createdAt instanceof Date ? data.createdAt : new Date());
+
+          const otherUid = data.senderUid === CURRENT_USER.uid ? data.receiverUid : data.senderUid;
+          if (otherUid) {
+            const currentLast = LAST_MESSAGE_MAP[otherUid];
+            if (!currentLast || createdAt > currentLast) {
+              LAST_MESSAGE_MAP[otherUid] = createdAt;
+            }
+          }
+        });
+
+        sortAndRenderUsers();
+      }, (error) => {
+        console.error("Error listening to user messages:", error);
+      });
+    }
+
+    async function updateMyTypingState(isTyping) {
+      if (!CURRENT_USER || !ACTIVE_CHAT_USER) return;
+
+      const uids = [CURRENT_USER.uid, ACTIVE_CHAT_USER.uid].sort();
+      const chatId = uids.join('_');
+
+      try {
+        await setDoc(doc(db, 'typing_states', chatId), {
+          [CURRENT_USER.uid]: isTyping
+        }, { merge: true });
+        isCurrentlyTyping = isTyping;
+      } catch (err) {
+        console.error("Error updating typing state:", err);
+      }
+    }
+
+    function handleTypingInput() {
+      if (!isCurrentlyTyping) {
+        updateMyTypingState(true);
+      }
+
+      if (typingTimeout) clearTimeout(typingTimeout);
+
+      typingTimeout = setTimeout(() => {
+        updateMyTypingState(false);
+      }, 2000);
+    }
+
+    function setupTypingStateListener() {
+      if (unsubscribeTypingState) {
+        unsubscribeTypingState();
+        unsubscribeTypingState = null;
+      }
+
+      const indicatorEl = document.getElementById('chatTypingIndicator');
+      const textEl = document.getElementById('chatTypingText');
+      if (indicatorEl) indicatorEl.style.display = 'none';
+
+      if (!CURRENT_USER || !ACTIVE_CHAT_USER) return;
+
+      const uids = [CURRENT_USER.uid, ACTIVE_CHAT_USER.uid].sort();
+      const chatId = uids.join('_');
+
+      unsubscribeTypingState = onSnapshot(doc(db, 'typing_states', chatId), (docSnap) => {
+        if (docSnap.exists() && ACTIVE_CHAT_USER) {
+          const data = docSnap.data();
+          const isOtherTyping = data[ACTIVE_CHAT_USER.uid] === true;
+          if (isOtherTyping) {
+            if (textEl) textEl.textContent = `${ACTIVE_CHAT_USER.ingameName} is typing`;
+            if (indicatorEl) indicatorEl.style.display = 'flex';
+          } else {
+            if (indicatorEl) indicatorEl.style.display = 'none';
+          }
+        } else {
+          if (indicatorEl) indicatorEl.style.display = 'none';
+        }
+      }, (error) => {
+        console.error("Error listening to typing state:", error);
+      });
+    }
+
+    function stopChatting() {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
+      }
+      if (isCurrentlyTyping) {
+        updateMyTypingState(false);
+      }
+      if (unsubscribeTypingState) {
+        unsubscribeTypingState();
+        unsubscribeTypingState = null;
+      }
+      const indicatorEl = document.getElementById('chatTypingIndicator');
+      if (indicatorEl) indicatorEl.style.display = 'none';
     }
 
     // Online state threshold (5 minutes active)
@@ -3443,6 +3645,8 @@
       const targetUser = ALL_USERS.find(u => u.uid === userUid);
       if (!targetUser) return;
 
+      stopChatting();
+
       ACTIVE_CHAT_USER = targetUser;
 
       const userListEl = document.getElementById('chatUserListContainer');
@@ -3466,10 +3670,12 @@
       const inputEl = document.getElementById('chatMessageInput');
       if (inputEl) {
         inputEl.value = '';
+        inputEl.style.height = '';
         inputEl.focus();
       }
 
       setupMessagesListener();
+      setupTypingStateListener();
     }
 
     // Listen to Firestore updates for a specific 1-to-1 conversation
@@ -3552,6 +3758,15 @@
       const chatId = uids.join('_');
 
       inputEl.value = '';
+      inputEl.style.height = '';
+
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
+      }
+      if (isCurrentlyTyping) {
+        updateMyTypingState(false);
+      }
 
       try {
         await addDoc(collection(db, 'messages'), {
@@ -3656,22 +3871,37 @@
       // 1. First escape HTML to prevent XSS
       let html = escapeHTML(text);
 
-      // 2. Multi-line Code blocks: ```content```
+      const codeBlocks = [];
+
+      // 2. Temporarily extract multi-line code blocks
       html = html.replace(/```(?:[a-zA-Z0-9+#-]+)?\n?([^]+?)```/g, (match, code) => {
-        return `<pre class="discord-code-block"><code>${code}</code></pre>`;
+        const placeholder = `CODEBLOCKPLACEHOLDERMULTILINE${codeBlocks.length}XYZ`;
+        codeBlocks.push({
+          placeholder: placeholder,
+          html: `<pre class="discord-code-block"><code>${code}</code></pre>`
+        });
+        return placeholder;
       });
 
-      // 3. Single-line Code blocks: `content`
-      html = html.replace(/`([^`\n]+?)`/g, '<code class="discord-inline-code">$1</code>');
+      // 3. Temporarily extract single-line code blocks
+      html = html.replace(/`([^`\n]+?)`/g, (match, code) => {
+        const placeholder = `CODEBLOCKPLACEHOLDERINLINE${codeBlocks.length}XYZ`;
+        codeBlocks.push({
+          placeholder: placeholder,
+          html: `<code class="discord-inline-code">${code}</code>`
+        });
+        return placeholder;
+      });
 
       // 4. Multi-line Blockquotes: >>> content
       if (html.startsWith('&gt;&gt;&gt; ')) {
         const content = html.slice(13);
-        return `<blockquote class="discord-blockquote">${content.replace(/\n/g, '<br>')}</blockquote>`;
+        html = `<blockquote class="discord-blockquote">${content.replace(/\n/g, '<br>')}</blockquote>`;
+      } else {
+        html = html.replace(/(?:^|\n)&gt;&gt;&gt;\s+([^]+)$/g, (match, content) => {
+          return `<blockquote class="discord-blockquote">${content.replace(/\n/g, '<br>')}</blockquote>`;
+        });
       }
-      html = html.replace(/(?:^|\n)&gt;&gt;&gt;\s+([^]+)$/g, (match, content) => {
-        return `<blockquote class="discord-blockquote">${content.replace(/\n/g, '<br>')}</blockquote>`;
-      });
 
       // 5. Single-line Blockquotes: > content
       html = html.split('\n').map(line => {
@@ -3702,23 +3932,13 @@
       // 11. Strikethrough: ~~content~~
       html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
 
-      // 12. Convert newlines to <br> outside of <pre> blocks
-      const parts = html.split(/(<\/pre>)/);
-      let insidePre = false;
-      html = parts.map(part => {
-        if (part === '</pre>') {
-          insidePre = false;
-          return part;
-        }
-        if (part.startsWith('<pre')) {
-          insidePre = true;
-          return part;
-        }
-        if (!insidePre) {
-          return part.replace(/\n/g, '<br>');
-        }
-        return part;
-      }).join('');
+      // 12. Convert newlines to <br> outside of placeholders
+      html = html.split('\n').join('<br>');
+
+      // 13. Restore code blocks from placeholders
+      for (const block of codeBlocks) {
+        html = html.replace(block.placeholder, block.html);
+      }
 
       return html;
     }
@@ -3946,7 +4166,7 @@
     ];
 
     const MGMT_MEMBERS = [
-      { id: 6, name: "TheKiller87", position: "Design Head", initials: "TK", description: "TheKiller87 is DNMX's farm design lead, responsible for planning efficient, high-yield farms and ensuring every resource hub supports the clan's long-term growth.", playstyle: "Methodical and detail-oriented. Focuses on layout efficiency, resource optimization, and durability.", responsibilities: "Farm layout planning and optimization. Resource flow and production efficiency. Coordination with builders and economic leaders to sustain clan supply lines.", council: "Management" },
+      { id: 8, name: "TheKiller87", position: "Design Head", initials: "TK", description: "TheKiller87 is DNMX's farm design lead, responsible for planning efficient, high-yield farms and ensuring every resource hub supports the clan's long-term growth.", playstyle: "Methodical and detail-oriented. Focuses on layout efficiency, resource optimization, and durability.", responsibilities: "Farm layout planning and optimization. Resource flow and production efficiency. Coordination with builders and economic leaders to sustain clan supply lines.", council: "Management" },
     ];
 
     // REPLACED BY FIRESTORE: localStorage loading functions removed
@@ -5593,6 +5813,7 @@
     window.goBackToUserList = goBackToUserList;
     window.openChatWithUser = openChatWithUser;
     window.sendChatMessage = sendChatMessage;
+    window.handleTypingInput = handleTypingInput;
 
     // Expose Memories functions
     window.setupMemoriesListener = setupMemoriesListener;
