@@ -3991,14 +3991,31 @@
 
     function previewImageUpload(inputEl, previewImgId) {
       const file = inputEl.files[0];
+      const form = inputEl.closest('form');
+      const errorEl = form ? (form.querySelector('[id*="Error"]') || form.querySelector('[id*="error"]')) : null;
+      if (errorEl) errorEl.textContent = '';
+
       if (file) {
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+          if (errorEl) errorEl.textContent = 'Image file size exceeds the 10MB limit. Please choose a smaller image.';
+          inputEl.value = ''; // clear input
+          const previewEl = document.getElementById(previewImgId);
+          if (previewEl) {
+            previewEl.removeAttribute('src');
+            previewEl.style.display = 'none';
+          }
+          return;
+        }
         compressImage(file).then(dataUrl => {
           const previewEl = document.getElementById(previewImgId);
           if (previewEl) {
             previewEl.src = dataUrl;
             previewEl.style.display = '';
           }
-        }).catch(err => console.error("Error compressing preview:", err));
+        }).catch(err => {
+          console.error("Error compressing preview:", err);
+          if (errorEl) errorEl.textContent = 'Error loading image preview.';
+        });
       }
     }
 
@@ -4092,10 +4109,43 @@
     // Helper to get user photo/initials by In-Game Name
     function getUserDataByIngameName(ingameName) {
       if (!ingameName) return null;
+      let user = null;
       if (CURRENT_USER && CURRENT_USER.ingameName === ingameName) {
-        return CURRENT_USER;
+        user = { ...CURRENT_USER };
+      } else {
+        const found = ALL_USERS.find(u => u.ingameName === ingameName);
+        if (found) {
+          user = { ...found };
+        }
       }
-      return ALL_USERS.find(u => u.ingameName === ingameName) || null;
+      const lowerName = ingameName.toLowerCase();
+      if (lowerName === 'drglass09') {
+        if (!user) {
+          user = { ingameName: 'DrGlass09', name: 'DrGlass09', initials: 'DG' };
+        }
+        user.photoURL = 'glasspfp.png';
+      } else if (lowerName === 'tntplayertnt') {
+        if (!user) {
+          user = { ingameName: 'TNTplayerTNT', name: 'TNTplayerTNT', initials: 'TNT' };
+        }
+        user.photoURL = 'tntpfp.png';
+      } else if (lowerName === 'crazycode1_') {
+        if (!user) {
+          user = { ingameName: 'CrazyCode1_', name: 'CrazyCode1_', initials: 'CC' };
+        }
+        user.photoURL = 'crazypfp.png';
+      } else if (lowerName === 'cyberelite') {
+        if (!user) {
+          user = { ingameName: 'CyberElite', name: 'CyberElite', initials: 'CE' };
+        }
+        user.photoURL = 'cyberpfp.png';
+      } else if (lowerName === 'thekiller87') {
+        if (!user) {
+          user = { ingameName: 'TheKiller87', name: 'TheKiller87', initials: 'TK' };
+        }
+        user.photoURL = 'tkpfp.png';
+      }
+      return user;
     }
 
     // ═════════════════════════════════════=
@@ -4312,7 +4362,7 @@
     ];
 
     const MGMT_MEMBERS = [
-      { id: 8, name: "TheKiller87", position: "Design Head", initials: "TK", description: "TheKiller87 is DNMX's farm design lead, responsible for planning efficient, high-yield farms and ensuring every resource hub supports the clan's long-term growth.", playstyle: "Methodical and detail-oriented. Focuses on layout efficiency, resource optimization, and durability.", responsibilities: "Farm layout planning and optimization. Resource flow and production efficiency. Coordination with builders and economic leaders to sustain clan supply lines.", council: "Management" },
+      { id: 8, name: "TheKiller87", position: "PVP Head", initials: "TK", description: "TheKiller87 is DNMX's PVP head, responsible for training clan members in combat, organizing tactical battle units, and leading frontline engagements to ensure dominance in every skirmish and war.", playstyle: "Aggressive frontliner specializing in quick decision-making, shield tactics, and critical timing during high-pressure combat situations.", responsibilities: "Frontline combat leadership and tactical command. Organizing PVP training sessions and trial duels for members. Coordinating battlefield logistics and defensive operations during clan conflicts.", council: "Management" },
     ];
 
     // REPLACED BY FIRESTORE: localStorage loading functions removed
@@ -4968,17 +5018,24 @@
       openModal();
 
       if (t.completed) {
-        const proofsRef = collection(db, 'task_proofs');
-        const q = query(proofsRef, where('taskId', '==', t.id), limit(1));
+        const proofsRef = collection(db, 'logs');
+        const q = query(proofsRef, where('taskTitle', '==', t.title));
         getDocs(q).then((snapshot) => {
           if (!snapshot.empty) {
-            const proofData = snapshot.docs[0].data();
-            if (proofData.proofFile) {
+            // Find the most recent proof by sorting client-side
+            const sortedDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+              const aTime = a.submittedAt && typeof a.submittedAt.toDate === 'function' ? a.submittedAt.toDate() : (a.submittedAt instanceof Date ? a.submittedAt : (a.timestamp && typeof a.timestamp.toDate === 'function' ? a.timestamp.toDate() : new Date(0)));
+              const bTime = b.submittedAt && typeof b.submittedAt.toDate === 'function' ? b.submittedAt.toDate() : (b.submittedAt instanceof Date ? b.submittedAt : (b.timestamp && typeof b.timestamp.toDate === 'function' ? b.timestamp.toDate() : new Date(0)));
+              return bTime - aTime;
+            });
+            const proofData = sortedDocs[0];
+            const proofFile = proofData.proofFile || proofData.media;
+            if (proofFile) {
               const btnContainer = document.getElementById('taskProofMediaBtnContainer');
               if (btnContainer) {
                 const escMsg = (proofData.message || '').replace(/'/g, "\\'");
                 btnContainer.innerHTML = `
-                  <button type="button" class="btn-primary" style="padding: 10px 20px; font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 0.15em; background: linear-gradient(135deg, #00e676, #00b0ff); margin-right: 12px;" onclick="window.openMediaFullModal('${proofData.proofFile}', '${proofData.fileType || 'image'}', 'Proof: ${escapeHTML(t.title)}', '${escMsg}')">VIEW MEDIA</button>
+                  <button type="button" class="btn-primary" style="padding: 10px 20px; font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 0.15em; background: linear-gradient(135deg, #00e676, #00b0ff); margin-right: 12px;" onclick="window.openMediaFullModal('${proofFile}', '${proofData.fileType || 'image'}', 'Proof: ${escapeHTML(t.title)}', '${escMsg}')">VIEW MEDIA</button>
                 `;
               }
             }
@@ -5335,8 +5392,8 @@
       openModal();
 
       try {
-        const proofsRef = collection(db, 'task_proofs');
-        const q = query(proofsRef, where('taskId', '==', taskId), orderBy('submittedAt', 'desc'));
+        const proofsRef = collection(db, 'logs');
+        const q = query(proofsRef, where('taskTitle', '==', t.title));
         const [snapshot, usersSnapshot] = await Promise.all([
           getDocs(q),
           getDocs(collection(db, 'users'))
@@ -5360,24 +5417,34 @@
           return;
         }
 
-        let rowsHTML = '';
+        // Sort documents descending client-side by submittedAt/timestamp to prevent composite index errors
+        const docs = [];
         snapshot.forEach((doc) => {
-          const data = doc.data();
-          const submittedAt = data.submittedAt && typeof data.submittedAt.toDate === 'function'
-            ? data.submittedAt.toDate()
-            : (data.submittedAt instanceof Date ? data.submittedAt : new Date());
+          docs.push({ id: doc.id, ...doc.data() });
+        });
+        docs.sort((a, b) => {
+          const aTime = a.submittedAt && typeof a.submittedAt.toDate === 'function' ? a.submittedAt.toDate() : (a.submittedAt instanceof Date ? a.submittedAt : (a.timestamp && typeof a.timestamp.toDate === 'function' ? a.timestamp.toDate() : new Date(0)));
+          const bTime = b.submittedAt && typeof b.submittedAt.toDate === 'function' ? b.submittedAt.toDate() : (b.submittedAt instanceof Date ? b.submittedAt : (b.timestamp && typeof b.timestamp.toDate === 'function' ? b.timestamp.toDate() : new Date(0)));
+          return bTime - aTime;
+        });
+
+        let rowsHTML = '';
+        docs.forEach((docData) => {
+          const submittedAt = docData.submittedAt && typeof docData.submittedAt.toDate === 'function'
+            ? docData.submittedAt.toDate()
+            : (docData.submittedAt instanceof Date ? docData.submittedAt : (docData.timestamp && typeof docData.timestamp.toDate === 'function' ? docData.timestamp.toDate() : new Date()));
           const dateStr = submittedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' +
             submittedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-          const emailKey = (data.email || '').toLowerCase().trim();
-          const displayName = userMap[emailKey] || data.username || 'Member';
+          const emailKey = (docData.email || '').toLowerCase().trim();
+          const displayName = userMap[emailKey] || docData.username || 'Member';
 
           rowsHTML += `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); font-family: 'Rajdhani', sans-serif; font-size: 0.95rem; font-weight: 500;">
               <td style="padding: 12px 5px; color: #fff;">${escapeHTML(displayName)}</td>
               <td style="padding: 12px 5px; color: rgba(255,255,255,0.6);">${dateStr}</td>
               <td style="padding: 12px 5px; text-align: right;">
-                <button type="button" class="btn-primary" style="padding: 6px 12px; font-size: 0.6rem; font-family: 'Orbitron', sans-serif;" onclick="window.openSingleProofDetailModal('${doc.id}', '${taskId}')">View Proof</button>
+                <button type="button" class="btn-primary" style="padding: 6px 12px; font-size: 0.6rem; font-family: 'Orbitron', sans-serif;" onclick="window.openSingleProofDetailModal('${docData.id}', '${taskId}')">View Proof</button>
               </td>
             </tr>
           `;
@@ -5406,7 +5473,7 @@
       openModal();
 
       try {
-        const proofDocRef = doc(db, 'task_proofs', proofId);
+        const proofDocRef = doc(db, 'logs', proofId);
         const docSnap = await getDoc(proofDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -5427,10 +5494,11 @@
           }
 
           let mediaHTML = '';
+          const proofFile = data.proofFile || data.media;
           if (data.fileType === 'video') {
-            mediaHTML = `<video src="${data.proofFile}" controls style="width:100%; max-height:55vh; border-radius:8px; border:1px solid rgba(255,255,255,0.1); margin-top:15px;"></video>`;
+            mediaHTML = `<video src="${proofFile}" controls style="width:100%; max-height:55vh; border-radius:8px; border:1px solid rgba(255,255,255,0.1); margin-top:15px;"></video>`;
           } else {
-            mediaHTML = `<img src="${data.proofFile}" style="width:100%; max-height:55vh; object-fit:contain; border-radius:8px; border:1px solid rgba(255,255,255,0.1); margin-top:15px;" />`;
+            mediaHTML = `<img src="${proofFile}" style="width:100%; max-height:55vh; object-fit:contain; border-radius:8px; border:1px solid rgba(255,255,255,0.1); margin-top:15px;" />`;
           }
 
           document.getElementById('modalContent').innerHTML = `
@@ -5494,7 +5562,7 @@
               <textarea id="memoryDescriptionInput" placeholder="Add a description or story about this memory..." style="min-height:80px;"></textarea>
             </label>
             <label style="margin-top:14px;">
-              Choose Image
+              Choose Image (Max size 10MB)
               <input type="file" id="memoryFileInput" accept="image/*" onchange="window.previewImageUpload(this, 'memoryUploadPreview')" required />
               <img id="memoryUploadPreview" class="modal-image-preview" style="display:none;" />
             </label>
@@ -5614,6 +5682,11 @@
       container.style.display = 'none';
 
       if (file.type.startsWith('image/')) {
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+          if (errorEl) errorEl.textContent = 'Image file size exceeds the 10MB limit. Please choose a smaller image.';
+          inputEl.value = ''; // clear input
+          return;
+        }
         compressImage(file).then(dataUrl => {
           imgPreview.src = dataUrl;
           imgPreview.style.display = 'block';
@@ -5623,8 +5696,8 @@
           if (errorEl) errorEl.textContent = 'Error loading image preview.';
         });
       } else if (file.type.startsWith('video/')) {
-        if (file.size > 1024 * 1024) { // 1MB limit for Firestore base64 string
-          if (errorEl) errorEl.textContent = 'Video file size exceeds the 1MB limit. Please upload a smaller video clip.';
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+          if (errorEl) errorEl.textContent = 'Video file size exceeds the 10MB limit. Please upload a smaller video clip.';
           inputEl.value = ''; // clear input
           return;
         }
@@ -5663,7 +5736,7 @@
           <p class="modal-subtitle" style="margin-bottom:18px;">Upload image/video proof of completing: <strong>${escapeHTML(t.title)}</strong></p>
           <form id="submitProofForm" onsubmit="window.submitTaskProof(event, '${t.id}')">
             <label style="margin-top:14px;">
-              Choose Image or Video Proof (Max size 1MB for videos)
+              Choose Image or Video Proof (Max size 10MB)
               <input type="file" id="proofFileInput" accept="image/*,video/*" onchange="window.previewProofFile(this)" required />
               <div id="proofPreviewContainer" style="margin-top:10px; display:none; text-align:center;">
                 <img id="proofImagePreview" class="modal-image-preview" style="max-height:200px; display:none; margin: 0 auto;" />
@@ -5718,15 +5791,18 @@
       try {
         if (errorEl) errorEl.textContent = 'Submitting proof...';
 
-        await addDoc(collection(db, 'task_proofs'), {
+        await addDoc(collection(db, 'logs'), {
           taskId: taskId,
           taskTitle: t.title,
+          taskName: t.title,
           username: CURRENT_USER.ingameName || CURRENT_USER.name || 'Member',
           email: CURRENT_USER.email,
           proofFile: fileData,
+          media: fileData,
           fileType: fileType,
           message: message,
-          submittedAt: serverTimestamp()
+          submittedAt: serverTimestamp(),
+          timestamp: serverTimestamp()
         });
 
         const docRef = doc(db, 'tasks', taskId);
